@@ -1,128 +1,170 @@
-const Movie = require("../models/Movie");
+const Movie = require("../models/Movies");
+const mongoose = require("mongoose");
 
-// GET /api/movies
-exports.getAllMovies = async (req, res) => {
-    try {
-
-        const movies = await Movie.find().sort({ createdAt: -1 });
-
-        res.status(200).json({
-            success: true,
-            count: movies.length,
-            data: movies,
-        });
-
-    } catch (error) {
-
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-
-    }
+// get all movies
+const getMovies = async (req, res) => {
+  const movies = await Movie.find().sort({ createdAt: -1 });
+  res.status(200).json(movies);
 };
 
-// GET /api/movies/now-showing
-exports.getNowShowingMovies = async (req, res) => {
-    try {
+// get now showing movies
+const getNowShowingMovies = async (req, res) => {
+  try {
+    const movies = await Movie.find({
+      status: "now_showing",
+    }).sort({ releaseDate: -1 });
 
-        const movies = await Movie.find({
-            status: "now_showing",
-        }).sort({ releaseDate: -1 });
-
-        res.status(200).json({
-            success: true,
-            count: movies.length,
-            data: movies,
-        });
-
-    } catch (error) {
-
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-
-    }
+    res.status(200).json(movies);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
 };
 
-// GET /api/movies/coming-soon
-exports.getComingSoonMovies = async (req, res) => {
-    try {
+// get coming soon movies
+const getComingSoonMovies = async (req, res) => {
+  try {
+    const movies = await Movie.find({
+      status: "coming_soon",
+    }).sort({ releaseDate: 1 });
 
-        const movies = await Movie.find({
-            status: "coming_soon",
-        }).sort({ releaseDate: 1 });
-
-        res.status(200).json({
-            success: true,
-            count: movies.length,
-            data: movies,
-        });
-
-    } catch (error) {
-
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-
-    }
+    res.status(200).json(movies);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
 };
 
-// GET /api/movies/search?keyword=...
-exports.searchMovies = async (req, res) => {
-    try {
+// search movies
+const searchMovies = async (req, res) => {
+  try {
+    const keyword = req.query.keyword || "";
 
-        const keyword = req.query.keyword || "";
+    const movies = await Movie.find({
+      title: {
+        $regex: keyword,
+        $options: "i",
+      },
+    });
 
-        const movies = await Movie.find({
-            title: {
-                $regex: keyword,
-                $options: "i",
-            },
-        });
-
-        res.status(200).json({
-            success: true,
-            count: movies.length,
-            data: movies,
-        });
-
-    } catch (error) {
-
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-
-    }
+    res.status(200).json(movies);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
 };
 
-// GET /api/movies/:id
-exports.getMovieById = async (req, res) => {
-    try {
+// get a single movie
+const getMovie = async (req, res) => {
+  const { id } = req.params;
 
-        const movie = await Movie.findById(req.params.id);
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(404).json({ error: "No such movie" });
+  }
 
-        if (!movie) {
-            return res.status(404).json({
-                success: false,
-                message: "Movie not found",
-            });
-        }
+  const movie = await Movie.findById(id);
 
-        res.status(200).json({
-            success: true,
-            data: movie,
-        });
+  if (!movie) {
+    return res.status(404).json({ error: "No such movie" });
+  }
 
-    } catch (error) {
+  res.status(200).json(movie);
+};
 
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
+// create a new movie
+const createMovie = async (req, res) => {
+  const {
+    title,
+    description,
+    duration,
+    genre,
+    director,
+    actors,
+    posterUrl,
+    trailerUrl,
+    releaseDate,
+    status,
+    rating,
+    priceFrom,
+    isFeatured,
+  } = req.body;
 
+  try {
+    const movie = await Movie.create({
+      title,
+      description,
+      duration,
+      genre,
+      director,
+      actors,
+      posterUrl,
+      trailerUrl,
+      releaseDate,
+      status,
+      rating,
+      priceFrom,
+      isFeatured,
+    });
+
+    res.status(200).json(movie);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// delete a movie
+const deleteMovie = async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(404).json({ error: "No such movie" });
+  }
+
+  const movie = await Movie.findOneAndDelete({ _id: id });
+
+  if (!movie) {
+    return res.status(404).json({ error: "No such movie" });
+  }
+
+  res.status(200).json({
+    message: "Movie deleted",
+    movie,
+  });
+};
+
+// update a movie
+const updateMovie = async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(404).json({ error: "No such movie" });
+  }
+
+  const movie = await Movie.findOneAndUpdate(
+    { _id: id },
+    {
+      ...req.body,
+    },
+    {
+      new: true,
+      runValidators: true,
     }
+  );
+
+  if (!movie) {
+    return res.status(404).json({ error: "No such movie" });
+  }
+
+  res.status(200).json({
+    message: "Movie updated",
+    movie,
+  });
+};
+
+module.exports = {
+  getMovies,
+  getNowShowingMovies,
+  getComingSoonMovies,
+  searchMovies,
+  getMovie,
+  createMovie,
+  deleteMovie,
+  updateMovie,
 };
