@@ -1,0 +1,13 @@
+{
+  "name": "projectmma",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev -w apps/backend",
+    "dev:mobile": "npm start -w apps/mobile",
+    "install:all": "npm install --workspaces"
+  }
+}
