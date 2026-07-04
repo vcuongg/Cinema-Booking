@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 
 const authRoutes = require("./routes/auth");
-const movieRoutes = require("./routes/movie");
+const movieRoutes = require("./routes/movies");
 const favouriteRoutes = require("./routes/favourite");
 
 const sendEmail = require("./utils/sendEmail");
