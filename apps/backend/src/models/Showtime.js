@@ -11,7 +11,7 @@ const showtimeSchema = new mongoose.Schema(
     roomId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Room",
-      required: true,
+      required: true, 
     },
 
     showDate: {
