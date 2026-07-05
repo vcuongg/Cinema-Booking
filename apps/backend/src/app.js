@@ -4,6 +4,7 @@ const cors = require("cors");
 const authRoutes = require("./routes/auth");
 const movieRoutes = require("./routes/movies");
 const favouriteRoutes = require("./routes/favourite");
+const showtimeRoutes = require("./routes/showtime");
 
 const sendEmail = require("./utils/sendEmail");
 
@@ -17,6 +18,7 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/movies", movieRoutes);
 app.use("/api/favourites", favouriteRoutes);
+app.use("/api/showtimes", showtimeRoutes);
 
 // Home
 app.get("/", (req, res) => {
