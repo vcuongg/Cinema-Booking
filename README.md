@@ -3,26 +3,19 @@
 Monorepo cho dự án full-stack với:
 
 - `apps/backend`: Node.js + Express + MongoDB
-- `apps/mobile`: React Native với Expo
 
 ## Cấu trúc thư mục
 
 ```text
 ProjectMMA/
 ├─ apps/
-│  ├─ backend/
-│  │  └─ src/
-│  │     ├─ app.js
-│  │     ├─ server.js
-│  │     ├─ controllers/
-│  │     ├─ models/
-│  │     └─ routes/
-│  └─ mobile/
-│     ├─ App.js
+│  └─ backend/
 │     └─ src/
-│        ├─ components/
-│        ├─ screens/
-│        └─ services/
+│        ├─ app.js
+│        ├─ server.js
+│        ├─ controllers/
+│        ├─ models/
+│        └─ routes/
 ├─ package.json
 └─ README.md
 ```
@@ -56,14 +49,6 @@ npm run dev:backend
 ```
 
 API mặc định chạy ở `http://localhost:5000`.
-
-### 4. Chạy mobile
-
-```bash
-npm run dev:mobile
-```
-
-Expo sẽ mở Dev Server để chạy trên emulator hoặc điện thoại.
 
 ## API backend
 
@@ -121,7 +106,6 @@ Ví dụ JSON:
 ## Gợi ý cách làm việc nhóm
 
 - Backend: chia theo `models`, `controllers`, `routes` để mỗi người xử lý một phần.
-- Mobile: chia theo `screens`, `components`, `services` để tách UI và API.
 - Không commit file `.env`.
 - Nếu cần chia sẻ code chung sau này, có thể tạo thêm `packages/shared`.
 
@@ -130,5 +114,5 @@ Ví dụ JSON:
 1. Clone repo.
 2. Chạy `npm install` ở root.
 3. Tạo `apps/backend/.env`.
-4. Chạy `npm run dev:backend` và `npm run dev:mobile`.
+4. Chạy `npm run dev:backend`.
 5. Mỗi người làm feature theo folder riêng rồi push lên GitHub.
