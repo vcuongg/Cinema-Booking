@@ -1,0 +1,254 @@
+const Showtime = require("../models/Showtime");
+const Movie = require("../models/Movie");
+const Cinema = require("../models/Cinema");
+const Room = require("../models/Room");
+const mongoose = require("mongoose");
+
+const calculateEndTime = (startTime, duration) => {
+  const [hour, minute] = startTime.split(":").map(Number);
+
+  const totalMinutes = hour * 60 + minute + duration;
+
+  const endHour = Math.floor(totalMinutes / 60);
+  const endMinute = totalMinutes % 60;
+
+  return `${String(endHour).padStart(2, "0")}:${String(endMinute).padStart(
+    2,
+    "0"
+  )}`;
+};
+
+// ================= GET ALL =================
+
+const getShowtimes = async (req, res) => {
+  try {
+    const showtimes = await Showtime.find()
+      .populate("movieId")
+      .populate("cinemaId")
+      .populate("roomId")
+      .sort({
+        showDate: 1,
+        startTime: 1,
+      });
+
+    res.status(200).json(showtimes);
+  } catch (error) {
+    res.status(400).json({
+      error: error.message,
+    });
+  }
+};
+
+// ================= GET MANAGE UI =================
+
+const getManageShowtimes = async (req, res) => {
+  try {
+    const movies = await Movie.find({
+      status: "now_showing",
+    }).sort({
+      title: 1,
+    });
+
+    const result = [];
+
+    for (const movie of movies) {
+      const showtimes = await Showtime.find({
+        movieId: movie._id,
+      })
+        .populate("cinemaId")
+        .populate("roomId")
+        .sort({
+          showDate: 1,
+          startTime: 1,
+        });
+
+      result.push({
+        movie,
+        showtimes,
+      });
+    }
+
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(400).json({
+      error: error.message,
+    });
+  }
+};
+
+// ================= GET FORM DATA =================
+
+const getShowtimeFormData = async (req, res) => {
+  try {
+    const movies = await Movie.find({
+      status: "now_showing",
+    });
+
+    const cinemas = await Cinema.find({
+      isActive: true,
+    });
+
+    res.status(200).json({
+      movies,
+      cinemas,
+    });
+  } catch (error) {
+    res.status(400).json({
+      error: error.message,
+    });
+  }
+};
+
+// ================= GET SINGLE =================
+
+const getShowtime = async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(404).json({
+      error: "No such showtime",
+    });
+  }
+
+  try {
+    const showtime = await Showtime.findById(id)
+      .populate("movieId")
+      .populate("cinemaId")
+      .populate("roomId");
+
+    if (!showtime) {
+      return res.status(404).json({
+        error: "No such showtime",
+      });
+    }
+
+    res.status(200).json(showtime);
+  } catch (error) {
+    res.status(400).json({
+      error: error.message,
+    });
+  }
+};
+
+// ================= CREATE =================
+
+const createShowtime = async (req, res) => {
+  const {
+    movieId,
+    cinemaId,
+    roomId,
+    showDate,
+    startTime,
+    price,
+  } = req.body;
+
+  try {
+    const movie = await Movie.findById(movieId);
+
+    const endTime = calculateEndTime(startTime, movie.duration);
+
+    const showtime = await Showtime.create({
+      movieId,
+      cinemaId,
+      roomId,
+      showDate,
+      startTime,
+      endTime,
+      price,
+    });
+
+    res.status(200).json(showtime);
+  } catch (error) {
+    res.status(400).json({
+      error: error.message,
+    });
+  }
+};
+
+// ================= UPDATE =================
+
+const updateShowtime = async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(404).json({
+      error: "No such showtime",
+    });
+  }
+
+  try {
+    let updateData = {
+      ...req.body,
+    };
+
+    if (req.body.movieId && req.body.startTime) {
+      const movie = await Movie.findById(req.body.movieId);
+
+      updateData.endTime = calculateEndTime(
+        req.body.startTime,
+        movie.duration
+      );
+    }
+
+    const showtime = await Showtime.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!showtime) {
+      return res.status(404).json({
+        error: "No such showtime",
+      });
+    }
+
+    res.status(200).json({
+      message: "Showtime updated",
+      showtime,
+    });
+  } catch (error) {
+    res.status(400).json({
+      error: error.message,
+    });
+  }
+};
+
+// ================= DELETE =================
+
+const deleteShowtime = async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(404).json({
+      error: "No such showtime",
+    });
+  }
+
+  try {
+    const showtime = await Showtime.findByIdAndDelete(id);
+
+    if (!showtime) {
+      return res.status(404).json({
+        error: "No such showtime",
+      });
+    }
+
+    res.status(200).json({
+      message: "Showtime deleted",
+      showtime,
+    });
+  } catch (error) {
+    res.status(400).json({
+      error: error.message,
+    });
+  }
+};
+
+module.exports = {
+  getShowtimes,
+  getManageShowtimes,
+  getShowtimeFormData,
+  getShowtime,
+  createShowtime,
+  updateShowtime,
+  deleteShowtime,
+};
