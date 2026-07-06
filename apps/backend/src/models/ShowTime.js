@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const showtimeSchema = new mongoose.Schema(
   {
@@ -22,13 +22,13 @@ const showtimeSchema = new mongoose.Schema(
     startTime: {
       type: String,
       required: true,
-      match: /^([01]\d|2[0-3]):([0-5]\d)$/, // HH:mm
+      match: /^([01]\d|2[0-3]):([0-5]\d)$/,
     },
 
     endTime: {
       type: String,
       required: true,
-      match: /^([01]\d|2[0-3]):([0-5]\d)$/, // HH:mm
+      match: /^([01]\d|2[0-3]):([0-5]\d)$/,
     },
 
     price: {
@@ -43,4 +43,4 @@ const showtimeSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("Showtime", showtimeSchema,"showtimes");
+export default mongoose.model("Showtime", showtimeSchema,"showtimes");
