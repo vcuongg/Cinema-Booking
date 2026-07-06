@@ -1,8 +1,9 @@
-const Showtime = require("../models/Showtime");
-const Movie = require("../models/Movie");
-const Cinema = require("../models/Cinema");
-const Room = require("../models/Room");
 const mongoose = require("mongoose");
+const Showtime = require("../models/Showtime");
+const Seat = require("../models/Seat");
+const Booking = require("../models/Booking");
+const Room = require("../models/Room");
+const Movie = require("../models/Movies");
 
 const calculateEndTime = (startTime, duration) => {
   const [hour, minute] = startTime.split(":").map(Number);
@@ -14,7 +15,7 @@ const calculateEndTime = (startTime, duration) => {
 
   return `${String(endHour).padStart(2, "0")}:${String(endMinute).padStart(
     2,
-    "0"
+    "0",
   )}`;
 };
 
@@ -133,14 +134,7 @@ const getShowtime = async (req, res) => {
 // ================= CREATE =================
 
 const createShowtime = async (req, res) => {
-  const {
-    movieId,
-    cinemaId,
-    roomId,
-    showDate,
-    startTime,
-    price,
-  } = req.body;
+  const { movieId, cinemaId, roomId, showDate, startTime, price } = req.body;
 
   try {
     const movie = await Movie.findById(movieId);
@@ -184,10 +178,7 @@ const updateShowtime = async (req, res) => {
     if (req.body.movieId && req.body.startTime) {
       const movie = await Movie.findById(req.body.movieId);
 
-      updateData.endTime = calculateEndTime(
-        req.body.startTime,
-        movie.duration
-      );
+      updateData.endTime = calculateEndTime(req.body.startTime, movie.duration);
     }
 
     const showtime = await Showtime.findByIdAndUpdate(id, updateData, {
@@ -243,7 +234,80 @@ const deleteShowtime = async (req, res) => {
   }
 };
 
+// GET /api/showtimes?movieId=
+const getShowtimesByMovie = async (req, res) => {
+  const { movieId } = req.query;
+
+  if (!movieId) {
+    return res.status(400).json({ error: "movieId is required" });
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(movieId)) {
+    return res.status(400).json({ error: "Invalid movieId" });
+  }
+
+  const showtimes = await ShowTime.find({ movieId })
+    .populate("roomId", "roomName totalSeats")
+    .sort({ showDate: 1, startTime: 1 });
+
+  res.status(200).json(showtimes);
+};
+
+// GET /api/showtimes/:showtimeId/seats
+// Lấy sơ đồ ghế của 1 suất chiếu, kèm trạng thái isBooked
+const getSeatsByShowtime = async (req, res) => {
+  const { showtimeId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(showtimeId)) {
+    return res.status(400).json({ error: "Invalid showtimeId" });
+  }
+
+  try {
+    const showtime = await Showtime.findById(showtimeId);
+    if (!showtime) {
+      return res.status(404).json({
+        error: "No such showtime",
+      });
+    }
+
+    const seats = await Seat.find({ roomId: showtime.roomId }).sort({
+      seatRow: 1,
+      seatNumber: 1,
+    });
+
+    const bookings = await Booking.find({
+      showtimeId,
+      bookingStatus: { $in: ["pending", "confirmed"] },
+    });
+
+    const bookedSeatIds = new Set(
+      bookings.flatMap((booking) =>
+        booking.seats.map((s) => s.seatId.toString()),
+      ),
+    );
+
+    const seatsWithStatus = seats.map((seat) => ({
+      _id: seat._id,
+      seatRow: seat.seatRow,
+      seatNumber: seat.seatNumber,
+      seatType: seat.seatType,
+      isBooked: bookedSeatIds.has(seat._id.toString()),
+    }));
+
+    res.status(200).json({
+      message: "Showtime updated",
+      showtime,
+    });
+  } catch (error) {
+    res.status(400).json({
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
+  getShowtimesByMovie,
+  getSeatsByShowtime,
   getShowtimes,
   getManageShowtimes,
   getShowtimeFormData,
