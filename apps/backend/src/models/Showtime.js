@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+const mongoose = require("mongoose");
 
 const showtimeSchema = new mongoose.Schema(
   {
@@ -43,4 +43,4 @@ const showtimeSchema = new mongoose.Schema(
   }
 );
 
-export default mongoose.model("Showtime", showtimeSchema,"showtimes");
+module.exports = mongoose.model("Showtime", showtimeSchema,"showtimes");
