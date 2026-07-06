@@ -1,11 +1,10 @@
 require("dotenv").config();
+console.log(process.env.MONGODB_URI);
 
-const mongoose = require("mongoose");
 const app = require("./app");
 const connectDB = require("./config/db");
 
 const PORT = process.env.PORT || 5000;
-const MONGODB_URI = process.env.MONGODB_URI;
 
 async function startServer() {
   try {
