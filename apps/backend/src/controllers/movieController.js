@@ -1,4 +1,4 @@
-const Movie = require("../models/Movies");
+const Movie = require("../models/Movie");
 const mongoose = require("mongoose");
 
 // get all movies
@@ -145,7 +145,7 @@ const updateMovie = async (req, res) => {
     {
       new: true,
       runValidators: true,
-    }
+    },
   );
 
   if (!movie) {

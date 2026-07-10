@@ -7,7 +7,7 @@ const {
   getMovie,
   deleteMovie,
   updateMovie,
-} = require("../controllers/moviesController");
+} = require("../controllers/movieController");
 
 router.get("/", getMovies);
 router.get("/:id", getMovie);

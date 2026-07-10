@@ -3,7 +3,8 @@ const Showtime = require("../models/Showtime");
 const Seat = require("../models/Seat");
 const Booking = require("../models/Booking");
 const Room = require("../models/Room");
-const Movie = require("../models/Movies");
+const Movie = require("../models/Movie");
+const Cinema = require("../models/Cinema");
 
 const calculateEndTime = (startTime, duration) => {
   const [hour, minute] = startTime.split(":").map(Number);
@@ -246,7 +247,7 @@ const getShowtimesByMovie = async (req, res) => {
     return res.status(400).json({ error: "Invalid movieId" });
   }
 
-  const showtimes = await ShowTime.find({ movieId })
+  const showtimes = await Showtime.find({ movieId })
     .populate("roomId", "roomName totalSeats")
     .sort({ showDate: 1, startTime: 1 });
 
@@ -295,8 +296,8 @@ const getSeatsByShowtime = async (req, res) => {
     }));
 
     res.status(200).json({
-      message: "Showtime updated",
       showtime,
+      seats: seatsWithStatus,
     });
   } catch (error) {
     res.status(400).json({

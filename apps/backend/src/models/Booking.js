@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
-const ShowTime = require("./ShowTime");
+const ShowTime = require("./Showtime");
 const Seat = require("./Seat");
-
 
 const bookingSchema = new mongoose.Schema(
   {
@@ -53,7 +52,7 @@ const bookingSchema = new mongoose.Schema(
       default: "",
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Booking", bookingSchema);
