@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { router } from 'expo-router';
 import { getMovies } from '@/shared/services/MovieService';
 import { Movie } from '@/shared/types/movie';
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
@@ -73,7 +74,7 @@ export default function MovieManagementScreen() {
         </TouchableOpacity>
       </View>
 
-        <TouchableOpacity style={styles.button}>
+        <TouchableOpacity style={styles.button} onPress={() => router.push('/admin/MovieCreate')}>
           <Text style={styles.buttonText}>Add Movie</Text>
         </TouchableOpacity>
        {/* List */}
