@@ -1,4 +1,4 @@
-const Movie = require("../models/Movies");
+const Movie = require("../models/Movie");
 const mongoose = require("mongoose");
 
 // get all movies

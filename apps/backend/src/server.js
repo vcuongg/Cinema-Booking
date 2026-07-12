@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 5000;
 
 async function startServer() {
   try {
-    if (!MONGODB_URI) {
+    if (!process.env.MONGODB_URI) {
       throw new Error("MONGODB_URI is not defined");
     }
 

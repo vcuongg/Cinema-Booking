@@ -3,7 +3,7 @@ const Showtime = require("../models/Showtime");
 const Seat = require("../models/Seat");
 const Booking = require("../models/Booking");
 const Room = require("../models/Room");
-const Movie = require("../models/Movies");
+const Movie = require("../models/Movie");
 
 const calculateEndTime = (startTime, duration) => {
   const [hour, minute] = startTime.split(":").map(Number);
