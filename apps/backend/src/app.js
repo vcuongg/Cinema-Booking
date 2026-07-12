@@ -5,6 +5,8 @@ const authRoutes = require("./routes/auth");
 const movieRoutes = require("./routes/movies");
 const favouriteRoutes = require("./routes/favourite");
 const showtimeRoutes = require("./routes/showtime");
+const bookingRoutes = require("./routes/booking");
+const paymentRoutes = require("./routes/payment");
 
 const sendEmail = require("./utils/sendEmail");
 
@@ -19,6 +21,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/movies", movieRoutes);
 app.use("/api/favourites", favouriteRoutes);
 app.use("/api/showtimes", showtimeRoutes);
+app.use("/api/bookings", bookingRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // Home
 app.get("/", (req, res) => {

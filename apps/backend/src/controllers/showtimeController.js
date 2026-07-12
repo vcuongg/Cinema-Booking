@@ -4,6 +4,7 @@ const Seat = require("../models/Seat");
 const Booking = require("../models/Booking");
 const Room = require("../models/Room");
 const Movie = require("../models/Movie");
+const Cinema = require("../models/Cinema");
 
 const calculateEndTime = (startTime, duration) => {
   const [hour, minute] = startTime.split(":").map(Number);
@@ -25,8 +26,12 @@ const getShowtimes = async (req, res) => {
   try {
     const showtimes = await Showtime.find()
       .populate("movieId")
-      .populate("cinemaId")
-      .populate("roomId")
+      .populate({
+        path: "roomId",
+        populate: {
+          path: "cinemaId",
+        },
+      })
       .sort({
         showDate: 1,
         startTime: 1,
@@ -56,8 +61,12 @@ const getManageShowtimes = async (req, res) => {
       const showtimes = await Showtime.find({
         movieId: movie._id,
       })
-        .populate("cinemaId")
-        .populate("roomId")
+        .populate({
+          path: "roomId",
+          populate: {
+            path: "cinemaId",
+          },
+        })
         .sort({
           showDate: 1,
           startTime: 1,
@@ -114,8 +123,12 @@ const getShowtime = async (req, res) => {
   try {
     const showtime = await Showtime.findById(id)
       .populate("movieId")
-      .populate("cinemaId")
-      .populate("roomId");
+      .populate({
+        path: "roomId",
+        populate: {
+          path: "cinemaId",
+        },
+      });
 
     if (!showtime) {
       return res.status(404).json({
@@ -246,7 +259,7 @@ const getShowtimesByMovie = async (req, res) => {
     return res.status(400).json({ error: "Invalid movieId" });
   }
 
-  const showtimes = await ShowTime.find({ movieId })
+  const showtimes = await Showtime.find({ movieId })
     .populate("roomId", "roomName totalSeats")
     .sort({ showDate: 1, startTime: 1 });
 
@@ -275,9 +288,35 @@ const getSeatsByShowtime = async (req, res) => {
       seatNumber: 1,
     });
 
+    await Booking.updateMany(
+      {
+        showtimeId,
+        bookingStatus: "pending",
+        paymentStatus: "pending",
+        paymentExpiresAt: { $ne: null, $lte: new Date() },
+      },
+      {
+        $set: {
+          bookingStatus: "cancelled",
+          paymentStatus: "failed",
+          payosStatus: "EXPIRED",
+        },
+      },
+    );
+
     const bookings = await Booking.find({
       showtimeId,
-      bookingStatus: { $in: ["pending", "confirmed"] },
+      $or: [
+        { bookingStatus: "confirmed" },
+        {
+          bookingStatus: "pending",
+          paymentStatus: "pending",
+          $or: [
+            { paymentExpiresAt: null },
+            { paymentExpiresAt: { $gt: new Date() } },
+          ],
+        },
+      ],
     });
 
     const bookedSeatIds = new Set(
@@ -295,8 +334,8 @@ const getSeatsByShowtime = async (req, res) => {
     }));
 
     res.status(200).json({
-      message: "Showtime updated",
       showtime,
+      seats: seatsWithStatus,
     });
   } catch (error) {
     res.status(400).json({

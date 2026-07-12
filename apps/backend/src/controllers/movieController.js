@@ -145,7 +145,7 @@ const updateMovie = async (req, res) => {
     {
       new: true,
       runValidators: true,
-    }
+    },
   );
 
   if (!movie) {
