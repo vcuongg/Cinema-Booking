@@ -32,14 +32,36 @@ const bookingSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    orderAmount: {
+      type: Number,
+      default: 0,
+    },
+    serviceFee: {
+      type: Number,
+      default: 0,
+    },
+    discountAmount: {
+      type: Number,
+      default: 0,
+    },
+    promoCode: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     paymentMethod: {
       type: String,
-      enum: ["simulated", "momo", "vnpay", "card"],
+      enum: ["simulated", "payos", "momo", "vnpay", "card"],
+      default: "simulated",
+    },
+    paymentProvider: {
+      type: String,
+      enum: ["simulated", "payos"],
       default: "simulated",
     },
     paymentStatus: {
       type: String,
-      enum: ["pending", "paid", "failed", "refunded"],
+      enum: ["pending", "paid", "failed", "cancelled", "refunded"],
       default: "pending",
     },
     bookingStatus: {
@@ -51,8 +73,41 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    paidAt: {
+      type: Date,
+      default: null,
+    },
+    paymentExpiresAt: {
+      type: Date,
+      default: null,
+    },
+    payosOrderCode: {
+      type: Number,
+    },
+    payosPaymentLinkId: {
+      type: String,
+      default: "",
+    },
+    payosCheckoutUrl: {
+      type: String,
+      default: "",
+    },
+    payosQrCode: {
+      type: String,
+      default: "",
+    },
+    payosStatus: {
+      type: String,
+      default: "",
+    },
+    paymentReference: {
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true },
 );
+
+bookingSchema.index({ payosOrderCode: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model("Booking", bookingSchema);

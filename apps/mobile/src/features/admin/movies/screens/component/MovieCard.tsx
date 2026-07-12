@@ -8,7 +8,13 @@ import {
 
 import { MaterialIcons } from "@expo/vector-icons";
 
-export default function MovieCard({ movie }) {
+import { Movie } from "@/shared/types/movie";
+
+interface MovieCardProps {
+  movie: Movie;
+}
+
+export default function MovieCard({ movie }: MovieCardProps) {
   return (
     <View style={styles.card}>
 
