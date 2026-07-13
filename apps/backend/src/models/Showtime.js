@@ -43,4 +43,4 @@ const showtimeSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("Showtime", showtimeSchema,"showtimes");
+module.exports = mongoose.models.Showtime || mongoose.model('Showtime', showtimeSchema);
