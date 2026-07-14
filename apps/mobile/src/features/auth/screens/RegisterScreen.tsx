@@ -95,10 +95,11 @@ export default function RegisterScreen() {
 
       showMessage(
         "Registration successful",
-        "Your account has been created.",
+        "Your account has been created. Please log in to continue.",
       );
 
-      router.replace("/home");
+      await authService.logout();
+      router.replace("/login");
     } catch (error) {
       const message =
         error instanceof Error

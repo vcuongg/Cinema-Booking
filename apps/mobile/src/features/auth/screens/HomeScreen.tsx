@@ -40,6 +40,8 @@ export default function HomeScreen() {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [filter, setFilter] =
     useState<MovieFilter>("all");
+  const [selectedGenre, setSelectedGenre] =
+    useState("All");
 
   const [keyword, setKeyword] = useState("");
   const [userName, setUserName] = useState("Guest");
@@ -166,6 +168,8 @@ export default function HomeScreen() {
     const normalizedKeyword = keyword
       .trim()
       .toLowerCase();
+    const normalizedSelectedGenre =
+      selectedGenre.toLowerCase();
 
     const shouldFilterByKeyword =
       normalizedKeyword.length > 0;
@@ -181,9 +185,25 @@ export default function HomeScreen() {
           ?.toLowerCase()
           .includes(normalizedKeyword);
 
-      return matchesFilter && matchesSearch;
+      const matchesGenre =
+        selectedGenre === "All" ||
+        String(movie.genre || "")
+          .split(/[,&/]/)
+          .map((genre) =>
+            genre.trim().toLowerCase(),
+          )
+          .some(
+            (genre) =>
+              genre === normalizedSelectedGenre,
+          );
+
+      return (
+        matchesFilter &&
+        matchesSearch &&
+        matchesGenre
+      );
     });
-  }, [filter, keyword, movies]);
+  }, [filter, keyword, movies, selectedGenre]);
 
   const suggestedMovies = useMemo(() => {
     const normalizedKeyword = keyword
@@ -202,6 +222,44 @@ export default function HomeScreen() {
       )
       .slice(0, 5);
   }, [keyword, movies]);
+
+  const exploreGenres = useMemo(() => {
+    const parsedGenres = movies
+      .flatMap((movie) =>
+        String(movie.genre || "")
+          .split(/[,&/]/)
+          .map((genre) => genre.trim())
+          .filter(Boolean),
+      )
+      .filter((genre, index, array) => {
+        return (
+          array.findIndex(
+            (item) =>
+              item.toLowerCase() ===
+              genre.toLowerCase(),
+          ) === index
+        );
+      })
+      .slice(0, 10);
+
+    if (parsedGenres.length > 0) {
+      return parsedGenres;
+    }
+
+    return [
+      "Action",
+      "Sci-Fi",
+      "Drama",
+      "Horror",
+      "Animation",
+      "Comedy",
+    ];
+  }, [movies]);
+
+  const genreOptions = useMemo(
+    () => ["All", ...exploreGenres],
+    [exploreGenres],
+  );
 
   const headerComponent = (
     <>
@@ -376,6 +434,55 @@ export default function HomeScreen() {
     </>
   );
 
+  const footerComponent = (
+    <View style={styles.genreSection}>
+      <View style={styles.genreSectionHeader}>
+        <View>
+          <Text style={styles.genreSectionTitle}>
+            Explore Genres
+          </Text>
+
+          <Text style={styles.genreSectionSubtitle}>
+            Pick your vibe for tonight
+            {selectedGenre !== "All"
+              ? ` - ${selectedGenre}`
+              : ""}
+          </Text>
+        </View>
+
+        <Ionicons
+          name="grid-outline"
+          size={20}
+          color="#E50914"
+        />
+      </View>
+
+      <View style={styles.genreGrid}>
+        {genreOptions.map((genre) => (
+          <Pressable
+            key={genre}
+            onPress={() => setSelectedGenre(genre)}
+            style={[
+              styles.genreChip,
+              selectedGenre === genre &&
+                styles.genreChipActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.genreChipText,
+                selectedGenre === genre &&
+                  styles.genreChipTextActive,
+              ]}
+            >
+              {genre}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingScreen}>
@@ -404,6 +511,7 @@ export default function HomeScreen() {
           />
         )}
         ListHeaderComponent={headerComponent}
+        ListFooterComponent={footerComponent}
         ListEmptyComponent={
           <EmptyMovies
             error={error}
@@ -763,6 +871,65 @@ const styles = StyleSheet.create({
     color: "#9CA3AF",
     fontSize: 12,
     marginTop: 3,
+  },
+
+  genreSection: {
+    marginTop: 8,
+    marginBottom: 14,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#29313D",
+    backgroundColor: "#111821",
+  },
+
+  genreSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+
+  genreSectionTitle: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "800",
+  },
+
+  genreSectionSubtitle: {
+    color: "#9CA3AF",
+    fontSize: 12,
+    marginTop: 4,
+  },
+
+  genreGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+
+  genreChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#39485A",
+    backgroundColor: "#151D27",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+
+  genreChipActive: {
+    backgroundColor: "#E50914",
+    borderColor: "#E50914",
+  },
+
+  genreChipText: {
+    color: "#E5E7EB",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  genreChipTextActive: {
+    color: "#FFFFFF",
   },
 
   emptyContainer: {

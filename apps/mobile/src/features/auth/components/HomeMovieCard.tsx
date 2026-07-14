@@ -45,27 +45,41 @@ export default function HomeMovieCard({
         pressed && styles.cardPressed,
       ]}
     >
-      {posterUri ? (
-        <Image
-          source={{
-            uri: posterUri,
-          }}
-          style={styles.poster}
-          resizeMode="cover"
-        />
-      ) : (
-        <View style={styles.posterPlaceholder}>
+      <View style={styles.posterContainer}>
+        {posterUri ? (
+          <Image
+            source={{
+              uri: posterUri,
+            }}
+            style={styles.poster}
+            resizeMode="contain"
+          />
+        ) : (
+          <View style={styles.posterPlaceholder}>
+            <Ionicons
+              name="film-outline"
+              size={32}
+              color="#6B7280"
+            />
+
+            <Text style={styles.placeholderText}>
+              No poster
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.ratingBadge}>
           <Ionicons
-            name="film-outline"
-            size={42}
-            color="#6B7280"
+            name="star"
+            size={13}
+            color="#FFD166"
           />
 
-          <Text style={styles.placeholderText}>
-            No poster
+          <Text style={styles.ratingBadgeText}>
+            {movie.rating ?? 0}
           </Text>
         </View>
-      )}
+      </View>
 
       <View style={styles.content}>
         <View style={styles.topRow}>
@@ -166,7 +180,7 @@ export default function HomeMovieCard({
 
           <View style={styles.detailButton}>
             <Text style={styles.detailButtonText}>
-              View details
+              Book Now
             </Text>
 
             <Ionicons
@@ -183,12 +197,14 @@ export default function HomeMovieCard({
 
 const styles = StyleSheet.create({
   card: {
+    flexDirection: "row",
     backgroundColor: "#111821",
     borderRadius: 18,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "#29313D",
     marginBottom: 18,
+    minHeight: 170,
   },
 
   cardPressed: {
@@ -196,18 +212,48 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.995 }],
   },
 
+  posterContainer: {
+    width: 126,
+    margin: 10,
+    borderRadius: 14,
+    overflow: "hidden",
+    backgroundColor: "#151D27",
+    borderWidth: 1,
+    borderColor: "#29313D",
+    position: "relative",
+  },
+
   poster: {
     width: "100%",
-    height: 210,
+    height: "100%",
     backgroundColor: "#151D27",
   },
 
   posterPlaceholder: {
     width: "100%",
-    height: 210,
+    height: "100%",
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#151D27",
+  },
+
+  ratingBadge: {
+    position: "absolute",
+    right: 8,
+    top: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(7, 11, 18, 0.85)",
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+  },
+
+  ratingBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
   },
 
   placeholderText: {
@@ -217,7 +263,10 @@ const styles = StyleSheet.create({
   },
 
   content: {
-    padding: 16,
+    flex: 1,
+    paddingVertical: 12,
+    paddingRight: 14,
+    paddingLeft: 2,
   },
 
   topRow: {
@@ -253,9 +302,7 @@ const styles = StyleSheet.create({
   },
 
   ratingBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
+    display: "none",
   },
 
   ratingText: {
@@ -268,7 +315,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 20,
     fontWeight: "800",
-    marginTop: 13,
+    marginTop: 10,
   },
 
   genre: {
@@ -300,7 +347,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
-    marginTop: 17,
+    marginTop: 14,
   },
 
   priceLabel: {

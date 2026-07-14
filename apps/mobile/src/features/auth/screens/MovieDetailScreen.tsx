@@ -411,7 +411,7 @@ export default function MovieDetailScreen() {
                             />
 
                             <Text style={styles.bookButtonText}>
-                                Book Now
+                                Book Ticket
                             </Text>
                         </Pressable>
                     </View>
