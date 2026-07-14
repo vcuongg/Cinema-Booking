@@ -50,6 +50,7 @@ export default function IndexRoute() {
       href={hasToken ? "/home" : "/login"}
     />
   );
+
 }
 
 const styles = StyleSheet.create({

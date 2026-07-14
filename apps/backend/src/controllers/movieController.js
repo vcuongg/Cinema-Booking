@@ -95,6 +95,23 @@ const getComingSoonMovies = async (req, res) => {
 const escapeRegex = (value) =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+// Normalize a field that can arrive as an array or a comma-separated string
+// into a clean array of trimmed, non-empty strings.
+const normalizeStringArray = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
 // SEARCH MOVIES
 const searchMovies = async (req, res) => {
   try {
@@ -216,11 +233,10 @@ const createMovie = async (req, res) => {
       description,
       duration,
       genre,
-      language,
       director,
       actors,
-      poster,
-      trailer,
+      posterUrl,
+      trailerUrl,
       releaseDate,
       status,
       rating,
@@ -228,10 +244,13 @@ const createMovie = async (req, res) => {
       isFeatured,
     } = req.body;
 
+    const normalizedGenre = normalizeStringArray(genre);
+    const normalizedActors = normalizeStringArray(actors);
+
     if (
       !title?.trim() ||
       !description?.trim() ||
-      !genre?.trim() ||
+      normalizedGenre.length === 0 ||
       !duration ||
       !releaseDate
     ) {
@@ -246,12 +265,11 @@ const createMovie = async (req, res) => {
       title: title.trim(),
       description: description.trim(),
       duration,
-      genre: genre.trim(),
-      language,
+      genre: normalizedGenre,
       director,
-      actors,
-      poster,
-      trailer,
+      actors: normalizedActors,
+      posterUrl,
+      trailerUrl,
       releaseDate,
       status,
       rating,
@@ -293,9 +311,19 @@ const updateMovie = async (req, res) => {
       });
     }
 
+    const updates = { ...req.body };
+
+    if (updates.genre !== undefined) {
+      updates.genre = normalizeStringArray(updates.genre);
+    }
+
+    if (updates.actors !== undefined) {
+      updates.actors = normalizeStringArray(updates.actors);
+    }
+
     const movie = await Movie.findByIdAndUpdate(
       id,
-      req.body,
+      updates,
       {
         new: true,
         runValidators: true,

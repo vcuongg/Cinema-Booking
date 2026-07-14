@@ -85,10 +85,69 @@ export async function searchMovies(
   return (response.movies || []).map(normalizeMovie);
 }
 
+export interface CreateMoviePayload {
+  title: string;
+  description: string;
+  genre: string[];
+  duration: number;
+  releaseDate: string;
+  director?: string;
+  actors?: string[];
+  posterUrl?: string;
+  trailerUrl?: string;
+  status?: "now_showing" | "coming_soon";
+  rating?: number;
+  priceFrom?: number;
+  isFeatured?: boolean;
+}
+
+export async function createMovie(
+  payload: CreateMoviePayload,
+): Promise<Movie> {
+  const response = await apiRequest<MovieDetailResponse>(
+    "/movies",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+      auth: true,
+    },
+  );
+
+  return normalizeMovie(response.movie);
+}
+
+export type UpdateMoviePayload = Partial<CreateMoviePayload>;
+
+export async function updateMovie(
+  id: string,
+  payload: UpdateMoviePayload,
+): Promise<Movie> {
+  const response = await apiRequest<MovieDetailResponse>(
+    `/movies/${id}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+      auth: true,
+    },
+  );
+
+  return normalizeMovie(response.movie);
+}
+
+export async function deleteMovie(id: string): Promise<void> {
+  await apiRequest<MovieDetailResponse>(`/movies/${id}`, {
+    method: "DELETE",
+    auth: true,
+  });
+}
+
 export const movieService = {
   getMovies,
   getNowShowing,
   getComingSoon,
   getMovieById,
   searchMovies,
+  createMovie,
+  updateMovie,
+  deleteMovie,
 };

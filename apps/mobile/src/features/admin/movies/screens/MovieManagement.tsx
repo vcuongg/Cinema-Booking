@@ -1,5 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -84,7 +85,8 @@ export default function MovieManagementScreen() {
         movie.title
           .toLowerCase()
           .includes(normalizedKeyword) ||
-        movie.genre
+        (movie.genre ?? [])
+          .join(" ")
           .toLowerCase()
           .includes(normalizedKeyword) ||
         movie.director
@@ -239,7 +241,10 @@ export default function MovieManagementScreen() {
             </Text>
           </View>
 
-          <TouchableOpacity style={styles.addButton}>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => router.push("/admin/MovieCreate")}
+          >
             <MaterialIcons
               name="add"
               size={20}

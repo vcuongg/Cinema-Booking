@@ -1,4 +1,5 @@
 import { MaterialIcons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import {
   Image,
   StyleSheet,
@@ -47,7 +48,7 @@ export default function MovieCard({ movie }: MovieCardProps) {
         </Text>
 
         <Text style={styles.genre}>
-          {movie.genre}
+          {(movie.genre ?? []).join(", ")}
         </Text>
 
         <View style={styles.badge}>
@@ -64,7 +65,15 @@ export default function MovieCard({ movie }: MovieCardProps) {
       </View>
 
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.icon}>
+        <TouchableOpacity
+          style={styles.icon}
+          onPress={() =>
+            router.push({
+              pathname: "/admin/MovieUpdate",
+              params: { id: movie._id },
+            })
+          }
+        >
           <MaterialIcons
             name="edit"
             size={18}

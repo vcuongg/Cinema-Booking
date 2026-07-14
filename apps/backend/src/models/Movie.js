@@ -15,7 +15,7 @@ const movieSchema = new mongoose.Schema(
     },
 
     genre: {
-      type: String,
+      type: [String],
       required: [true, "Genre is required"],
       trim: true,
     },
@@ -24,12 +24,6 @@ const movieSchema = new mongoose.Schema(
       type: Number,
       required: [true, "Duration is required"],
       min: [1, "Duration must be greater than 0"],
-    },
-
-    language: {
-      type: String,
-      default: "English",
-      trim: true,
     },
 
     director: {
@@ -43,21 +37,21 @@ const movieSchema = new mongoose.Schema(
       default: [],
     },
 
+    posterUrl: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    trailerUrl: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     releaseDate: {
       type: Date,
       required: [true, "Release date is required"],
-    },
-
-    poster: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
-    trailer: {
-      type: String,
-      default: "",
-      trim: true,
     },
 
     status: {
@@ -89,7 +83,4 @@ const movieSchema = new mongoose.Schema(
   },
 );
 
-module.exports = mongoose.model(
-  "Movie",
-  movieSchema,
-);
+module.exports = mongoose.model("Movie", movieSchema);
