@@ -1,29 +1,33 @@
-
+import { Ionicons } from '@expo/vector-icons';
+import type { Href } from 'expo-router';
 import {
-  Tabs,
   TabList,
-  TabTrigger,
   TabSlot,
+  Tabs,
+  TabTrigger,
   TabTriggerSlotProps,
-} from "expo-router/ui";
-import { Pressable, View, Text, StyleSheet } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+} from 'expo-router/ui';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-// Định nghĩa 4 tab
-const TAB_ITEMS = [
-  { name: "home",       href: "/",            icon: "home",        label: "Home" },
-  { name: "tickets",    href: "/tickets",     icon: "ticket",      label: "Tickets" },
-  { name: "favourites", href: "/favourites",  icon: "heart",       label: "Favorites" },
-  { name: "profile",    href: "/profile",     icon: "person",      label: "Profile" },
-] as const;
+type TabItem = {
+  name: string;
+  href: Href;
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+};
+
+const TAB_ITEMS: TabItem[] = [
+  { name: 'home', href: '/', icon: 'home', label: 'Home' },
+  { name: 'tickets', href: '/tickets', icon: 'ticket', label: 'Tickets' },
+  { name: 'favourites', href: '/favourites', icon: 'heart', label: 'Favorites' },
+  { name: 'profile', href: '/profile', icon: 'person', label: 'Profile' },
+];
 
 export default function AppTabs() {
   return (
     <Tabs>
-      {/* Nội dung màn hình */}
-      <TabSlot style={{ flex: 1 }} />
+      <TabSlot style={styles.slot} />
 
-      {/* Tab bar dưới cùng */}
       <TabList asChild>
         <BottomTabBar>
           {TAB_ITEMS.map((tab) => (
@@ -37,104 +41,52 @@ export default function AppTabs() {
   );
 }
 
-// Tab bar container
 function BottomTabBar({ children, ...props }: any) {
   return (
     <View {...props} style={styles.tabBar}>
       {children}
     </View>
-    <NativeTabs
-      backgroundColor={colors.background}
-      indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}>
-      <NativeTabs.Trigger name="index">
-        <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('../../assets/images/tabIcons/home.png')}
-          renderingMode="template"
-        />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="explore">
-        <NativeTabs.Trigger.Label>Explore</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('../../assets/images/tabIcons/explore.png')}
-          renderingMode="template"
-        />
-      </NativeTabs.Trigger>
-    </NativeTabs>
   );
 }
 
-// Từng nút tab
 function TabButton({
-  children,
   isFocused,
   icon,
   label,
   ...props
-}: TabTriggerSlotProps & { icon: string; label: string }) {
-  const color = isFocused ? "#E50000" : "#666";
+}: TabTriggerSlotProps & { icon: keyof typeof Ionicons.glyphMap; label: string }) {
+  const color = isFocused ? '#E50000' : '#666';
 
   return (
-    <Pressable
-      {...props}
-      style={({ pressed }) => [styles.tabButton, pressed && { opacity: 0.7 }]}
-    >
-      <Ionicons name={icon as any} size={24} color={color} />
+    <Pressable {...props} style={({ pressed }) => [styles.tabButton, pressed && styles.pressed]}>
+      <Ionicons name={icon} size={24} color={color} />
       <Text style={[styles.tabLabel, { color }]}>{label}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  slot: {
+    flex: 1,
+  },
   tabBar: {
-    flexDirection: "row",
-    backgroundColor: "#111",
+    flexDirection: 'row',
+    backgroundColor: '#111',
     borderTopWidth: 1,
-    borderTopColor: "#222",
-    paddingBottom: 20,   // safe area cho iPhone, Android tự adjust
+    borderTopColor: '#222',
+    paddingBottom: 20,
     paddingTop: 10,
   },
   tabButton: {
     flex: 1,
-    alignItems: "center",
+    alignItems: 'center',
     gap: 4,
+  },
+  pressed: {
+    opacity: 0.7,
   },
   tabLabel: {
     fontSize: 11,
-    fontWeight: "500",
+    fontWeight: '500',
   },
 });
-// import { NativeTabs } from 'expo-router/unstable-native-tabs';
-// import { useColorScheme } from 'react-native';
-
-// import { Colors } from '@/constants/theme';
-
-// export default function AppTabs() {
-//   const scheme = useColorScheme();
-//   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
-
-//   return (
-//     <NativeTabs
-//       backgroundColor={colors.background}
-//       indicatorColor={colors.backgroundElement}
-//       labelStyle={{ selected: { color: colors.text } }}>
-//       <NativeTabs.Trigger name="index">
-//         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-//         <NativeTabs.Trigger.Icon
-//           src={require('@/assets/images/tabIcons/home.png')}
-//           renderingMode="template"
-//         />
-//       </NativeTabs.Trigger>
-
-//       <NativeTabs.Trigger name="explore">
-//         <NativeTabs.Trigger.Label>Explore</NativeTabs.Trigger.Label>
-//         <NativeTabs.Trigger.Icon
-//           src={require('@/assets/images/tabIcons/explore.png')}
-//           renderingMode="template"
-//         />
-//       </NativeTabs.Trigger>
-//     </NativeTabs>
-//   );
-// }

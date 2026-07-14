@@ -3,6 +3,7 @@ export interface Movie {
   title: string;
   description: string;
   genre: string[]
+  language?: string;
   duration: number;
   director?: string;
   actors?: string[];

@@ -26,7 +26,11 @@ import {
 
 import { LinearGradient } from "expo-linear-gradient";
 
-import DateTimePicker from "@react-native-community/datetimepicker";
+let DateTimePicker: any = null;
+
+if (Platform.OS !== "web") {
+  DateTimePicker = require("@react-native-community/datetimepicker").default;
+}
 
 import { useRouter, useLocalSearchParams } from "expo-router";
 
@@ -667,7 +671,7 @@ export default function AddShowtimeScreen() {
                         </Text>
 
                         <Text style={styles.modalOptionSubtitle}>
-                          Capacity: {item.capacity}
+                          Capacity: {item.totalSeats}
                         </Text>
                       </View>
 
@@ -695,7 +699,7 @@ export default function AddShowtimeScreen() {
           mode="date"
           minimumDate={new Date()}
           display={Platform.OS === "ios" ? "inline" : "default"}
-          onChange={(event, value) => {
+          onChange={(event: any, value?: Date) => {
             setShowDatePicker(Platform.OS === "ios");
 
             if (event.type !== "dismissed" && value) {
@@ -712,7 +716,7 @@ export default function AddShowtimeScreen() {
           value={startTime ?? new Date()}
           mode="time"
           display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={(event, value) => {
+          onChange={(event: any, value?: Date) => {
             setShowTimePicker(Platform.OS === "ios");
 
             if (event.type !== "dismissed" && value) {

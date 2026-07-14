@@ -681,7 +681,7 @@ export default function UpdateShowtimeScreen() {
           mode="date"
           minimumDate={new Date()}
           display={Platform.OS === "ios" ? "inline" : "default"}
-          onChange={(event, value) => {
+          onChange={(event: any, value?: Date) => {
             setShowDatePicker(Platform.OS === "ios");
 
             if (event.type !== "dismissed" && value) {
@@ -696,7 +696,7 @@ export default function UpdateShowtimeScreen() {
           value={startTime ?? new Date()}
           mode="time"
           display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={(event, value) => {
+          onChange={(event: any, value?: Date) => {
             setShowTimePicker(Platform.OS === "ios");
 
             if (event.type !== "dismissed" && value) {

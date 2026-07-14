@@ -1,65 +1,11 @@
 const mongoose = require("mongoose");
 
 const movieSchema = new mongoose.Schema(
-<<<<<<< Updated upstream
   {
     title: {
       type: String,
       required: [true, "Title is required"],
       trim: true,
-=======
-    {
-        title: {
-            type: String,
-            required: true,
-        },
-
-        description: {
-            type: String,
-            required: true,
-        },
-
-        genre: [{
-            type: String,
-            required: true,
-        }],
-
-        duration: {
-            type: Number,
-            required: true,
-        },
-
-        language: {
-            type: String,
-            default: "English",
-        },
-
-        releaseDate: {
-            type: Date,
-            required: true,
-        },
-
-        poster: {
-            type: String,
-            default: "",
-        },
-
-        trailer: {
-            type: String,
-            default: "",
-        },
-
-        status: {
-            type: String,
-            enum: ["now_showing", "coming_soon"],
-            default: "coming_soon",
-        },
-
-        rating: {
-            type: Number,
-            default: 0,
-        },
->>>>>>> Stashed changes
     },
 
     description: {
@@ -80,6 +26,12 @@ const movieSchema = new mongoose.Schema(
       min: [1, "Duration must be greater than 0"],
     },
 
+    language: {
+      type: String,
+      default: "English",
+      trim: true,
+    },
+
     director: {
       type: String,
       default: "",
@@ -91,7 +43,19 @@ const movieSchema = new mongoose.Schema(
       default: [],
     },
 
+    poster: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     posterUrl: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    trailer: {
       type: String,
       default: "",
       trim: true,
