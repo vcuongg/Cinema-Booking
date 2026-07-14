@@ -55,28 +55,30 @@ const getManageShowtimes = async (req, res) => {
       title: 1,
     });
 
-    const result = [];
+    const movieIds = movies.map((movie) => movie._id);
 
-    for (const movie of movies) {
-      const showtimes = await Showtime.find({
-        movieId: movie._id,
+    const showtimes = await Showtime.find({
+      movieId: {
+        $in: movieIds,
+      },
+    })
+      .populate({
+        path: "roomId",
+        populate: {
+          path: "cinemaId",
+        },
       })
-        .populate({
-          path: "roomId",
-          populate: {
-            path: "cinemaId",
-          },
-        })
-        .sort({
-          showDate: 1,
-          startTime: 1,
-        });
-
-      result.push({
-        movie,
-        showtimes,
+      .sort({
+        showDate: 1,
+        startTime: 1,
       });
-    }
+
+    const result = movies.map((movie) => ({
+      movie,
+      showtimes: showtimes.filter(
+        (showtime) => showtime.movieId.toString() === movie._id.toString(),
+      ),
+    }));
 
     res.status(200).json(result);
   } catch (error) {
@@ -90,17 +92,38 @@ const getManageShowtimes = async (req, res) => {
 
 const getShowtimeFormData = async (req, res) => {
   try {
+    // Chỉ lấy phim đang chiếu
     const movies = await Movie.find({
       status: "now_showing",
+    }).sort({
+      title: 1,
     });
 
+    // Chỉ lấy rạp đang hoạt động
     const cinemas = await Cinema.find({
       isActive: true,
+    }).sort({
+      cinemaName: 1,
     });
+
+    // Lấy id của các rạp đang hoạt động
+    const cinemaIds = cinemas.map((cinema) => cinema._id);
+
+    // Chỉ lấy phòng thuộc các rạp đang hoạt động
+    const rooms = await Room.find({
+      cinemaId: {
+        $in: cinemaIds,
+      },
+    })
+      .populate("cinemaId")
+      .sort({
+        roomName: 1,
+      });
 
     res.status(200).json({
       movies,
       cinemas,
+      rooms,
     });
   } catch (error) {
     res.status(400).json({
@@ -143,20 +166,79 @@ const getShowtime = async (req, res) => {
     });
   }
 };
-
 // ================= CREATE =================
 
 const createShowtime = async (req, res) => {
-  const { movieId, cinemaId, roomId, showDate, startTime, price } = req.body;
+  const { movieId, roomId, showDate, startTime, price } = req.body;
 
   try {
+    // ===== Check movie =====
+
     const movie = await Movie.findById(movieId);
+
+    if (!movie) {
+      return res.status(404).json({
+        error: "Movie not found",
+      });
+    }
+
+    // ===== Check room =====
+
+    const room = await Room.findById(roomId);
+
+    if (!room) {
+      return res.status(404).json({
+        error: "Room not found",
+      });
+    }
+
+    // ===== Check release date =====
+
+    if (new Date(showDate) < new Date(movie.releaseDate)) {
+      return res.status(400).json({
+        error: "Movie has not been released yet",
+      });
+    }
+
+    // ===== Calculate end time =====
 
     const endTime = calculateEndTime(startTime, movie.duration);
 
+    // ===== Check duplicated showtime =====
+
+    const existedShowtimes = await Showtime.find({
+      roomId,
+      showDate,
+    });
+
+    const newStart =
+      Number(startTime.split(":")[0]) * 60 + Number(startTime.split(":")[1]);
+
+    const newEnd =
+      Number(endTime.split(":")[0]) * 60 + Number(endTime.split(":")[1]);
+
+    const isConflict = existedShowtimes.some((show) => {
+      const existStart =
+        Number(show.startTime.split(":")[0]) * 60 +
+        Number(show.startTime.split(":")[1]);
+
+      const existEnd =
+        Number(show.endTime.split(":")[0]) * 60 +
+        Number(show.endTime.split(":")[1]);
+
+      return newStart < existEnd && newEnd > existStart;
+    });
+
+    if (isConflict) {
+      return res.status(400).json({
+        error: "Room already has another showtime during this period",
+      });
+    }
+
+    // ===== Create =====
+
     const showtime = await Showtime.create({
       movieId,
-      cinemaId,
       roomId,
       showDate,
       startTime,
@@ -164,7 +246,7 @@ const createShowtime = async (req, res) => {
       price,
     });
 
-    res.status(200).json(showtime);
+    res.status(201).json(showtime);
   } catch (error) {
     res.status(400).json({
       error: error.message,
@@ -184,30 +266,102 @@ const updateShowtime = async (req, res) => {
   }
 
   try {
-    let updateData = {
-      ...req.body,
-    };
+    const currentShowtime = await Showtime.findById(id);
 
-    if (req.body.movieId && req.body.startTime) {
-      const movie = await Movie.findById(req.body.movieId);
-
-      updateData.endTime = calculateEndTime(req.body.startTime, movie.duration);
-    }
-
-    const showtime = await Showtime.findByIdAndUpdate(id, updateData, {
-      new: true,
-      runValidators: true,
-    });
-
-    if (!showtime) {
+    if (!currentShowtime) {
       return res.status(404).json({
         error: "No such showtime",
       });
     }
 
+    const movieId = req.body.movieId ?? currentShowtime.movieId;
+
+    const roomId = req.body.roomId ?? currentShowtime.roomId;
+
+    const showDate = req.body.showDate ?? currentShowtime.showDate;
+
+    const startTime = req.body.startTime ?? currentShowtime.startTime;
+
+    const price = req.body.price ?? currentShowtime.price;
+
+    // ===== Check movie =====
+
+    const movie = await Movie.findById(movieId);
+
+    if (!movie) {
+      return res.status(404).json({
+        error: "Movie not found",
+      });
+    }
+
+    // ===== Check room =====
+
+    const room = await Room.findById(roomId);
+
+    if (!room) {
+      return res.status(404).json({
+        error: "Room not found",
+      });
+    }
+
+    // ===== Release date =====
+
+    if (new Date(showDate) < new Date(movie.releaseDate)) {
+      return res.status(400).json({
+        error: "Movie has not been released yet",
+      });
+    }
+
+    const endTime = calculateEndTime(startTime, movie.duration);
+
+    // ===== Conflict =====
+
+    const existedShowtimes = await Showtime.find({
+      roomId,
+      showDate,
+      _id: {
+        $ne: id,
+      },
+    });
+
+    const newStart =
+      Number(startTime.split(":")[0]) * 60 + Number(startTime.split(":")[1]);
+
+    const newEnd =
+      Number(endTime.split(":")[0]) * 60 + Number(endTime.split(":")[1]);
+
+    const isConflict = existedShowtimes.some((show) => {
+      const existStart =
+        Number(show.startTime.split(":")[0]) * 60 +
+        Number(show.startTime.split(":")[1]);
+
+      const existEnd =
+        Number(show.endTime.split(":")[0]) * 60 +
+        Number(show.endTime.split(":")[1]);
+
+      return newStart < existEnd && newEnd > existStart;
+    });
+
+    if (isConflict) {
+      return res.status(400).json({
+        error: "Room already has another showtime during this period",
+      });
+    }
+
+    // ===== Update =====
+
+    currentShowtime.movieId = movieId;
+    currentShowtime.roomId = roomId;
+    currentShowtime.showDate = showDate;
+    currentShowtime.startTime = startTime;
+    currentShowtime.endTime = endTime;
+    currentShowtime.price = price;
+
+    await currentShowtime.save();
+
     res.status(200).json({
       message: "Showtime updated",
-      showtime,
+      showtime: currentShowtime,
     });
   } catch (error) {
     res.status(400).json({
@@ -247,90 +401,92 @@ const deleteShowtime = async (req, res) => {
   }
 };
 
-// GET /api/showtimes?movieId=
+// ================= GET BY MOVIE =================
+
 const getShowtimesByMovie = async (req, res) => {
   const { movieId } = req.query;
 
   if (!movieId) {
-    return res.status(400).json({ error: "movieId is required" });
+    return res.status(400).json({
+      error: "Movie ID is required",
+    });
   }
 
   if (!mongoose.Types.ObjectId.isValid(movieId)) {
-    return res.status(400).json({ error: "Invalid movieId" });
+    return res.status(404).json({
+      error: "Invalid movie ID",
+    });
   }
 
-  const showtimes = await Showtime.find({ movieId })
-    .populate("roomId", "roomName totalSeats")
-    .sort({ showDate: 1, startTime: 1 });
+  try {
+    const showtimes = await Showtime.find({
+      movieId,
+    })
+      .populate("movieId")
+      .populate({
+        path: "roomId",
+        populate: {
+          path: "cinemaId",
+        },
+      })
+      .sort({
+        showDate: 1,
+        startTime: 1,
+      });
 
-  res.status(200).json(showtimes);
+    res.status(200).json(showtimes);
+  } catch (error) {
+    res.status(400).json({
+      error: error.message,
+    });
+  }
 };
 
-// GET /api/showtimes/:showtimeId/seats
-// Lấy sơ đồ ghế của 1 suất chiếu, kèm trạng thái isBooked
+// ================= GET SEATS BY SHOWTIME =================
+
 const getSeatsByShowtime = async (req, res) => {
   const { showtimeId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(showtimeId)) {
-    return res.status(400).json({ error: "Invalid showtimeId" });
+    return res.status(404).json({
+      error: "No such showtime",
+    });
   }
 
   try {
-    const showtime = await Showtime.findById(showtimeId);
+    const showtime = await Showtime.findById(showtimeId)
+      .populate("movieId")
+      .populate({
+        path: "roomId",
+        populate: {
+          path: "cinemaId",
+        },
+      });
+
     if (!showtime) {
       return res.status(404).json({
         error: "No such showtime",
       });
     }
 
-    const seats = await Seat.find({ roomId: showtime.roomId }).sort({
-      seatRow: 1,
-      seatNumber: 1,
+    // Get all seats in the room
+    const seats = await Seat.find({
+      roomId: showtime.roomId._id,
     });
 
-    await Booking.updateMany(
-      {
-        showtimeId,
-        bookingStatus: "pending",
-        paymentStatus: "pending",
-        paymentExpiresAt: { $ne: null, $lte: new Date() },
-      },
-      {
-        $set: {
-          bookingStatus: "cancelled",
-          paymentStatus: "failed",
-          payosStatus: "EXPIRED",
-        },
-      },
-    );
-
+    // Get all bookings for this showtime
     const bookings = await Booking.find({
       showtimeId,
-      $or: [
-        { bookingStatus: "confirmed" },
-        {
-          bookingStatus: "pending",
-          paymentStatus: "pending",
-          $or: [
-            { paymentExpiresAt: null },
-            { paymentExpiresAt: { $gt: new Date() } },
-          ],
-        },
-      ],
     });
 
-    const bookedSeatIds = new Set(
-      bookings.flatMap((booking) =>
-        booking.seats.map((s) => s.seatId.toString()),
-      ),
-    );
+    const bookedSeatIds = bookings
+      .map((booking) => booking.seats.map((seat) => seat.toString()))
+      .flat();
 
+    // Add booking status to each seat
     const seatsWithStatus = seats.map((seat) => ({
-      _id: seat._id,
-      seatRow: seat.seatRow,
-      seatNumber: seat.seatNumber,
-      seatType: seat.seatType,
-      isBooked: bookedSeatIds.has(seat._id.toString()),
+      ...seat.toObject(),
+      isBooked: bookedSeatIds.includes(seat._id.toString()),
     }));
 
     res.status(200).json({
@@ -345,8 +501,6 @@ const getSeatsByShowtime = async (req, res) => {
 };
 
 module.exports = {
-  getShowtimesByMovie,
-  getSeatsByShowtime,
   getShowtimes,
   getManageShowtimes,
   getShowtimeFormData,
@@ -354,4 +508,6 @@ module.exports = {
   createShowtime,
   updateShowtime,
   deleteShowtime,
+  getShowtimesByMovie,
+  getSeatsByShowtime,
 };
