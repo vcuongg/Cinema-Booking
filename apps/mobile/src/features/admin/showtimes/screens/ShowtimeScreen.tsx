@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   StatusBar,
   Alert,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
@@ -77,32 +78,34 @@ export default function ManageShowtimeScreen() {
     });
   };
 
-  const handleDeleteShowtime = (showtimeId: string) => {
-    Alert.alert(
-      "Delete Showtime",
-      "Are you sure you want to delete this showtime?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
+  const handleDeleteShowtime = async (showtimeId: string) => {
+    if (Platform.OS === "web") {
+      const ok = window.confirm(
+        "Are you sure you want to delete this showtime?",
+      );
+
+      if (!ok) return;
+
+      await deleteShowtime(showtimeId);
+
+      await loadShowtimes();
+    } else {
+      Alert.alert(
+        "Delete Showtime",
+        "Are you sure you want to delete this showtime?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
               await deleteShowtime(showtimeId);
-
               await loadShowtimes();
-            } catch (err) {
-              console.log(err);
-
-              Alert.alert("Error", "Delete showtime failed");
-            }
+            },
           },
-        },
-      ],
-    );
+        ],
+      );
+    }
   };
   return (
     <SafeAreaView style={styles.safeArea}>
