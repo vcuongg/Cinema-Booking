@@ -1,0 +1,56 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
+
+const LOCAL_API_URL = "http://10.0.2.2:5001/api";
+const WEB_API_URL = "http://127.0.0.1:5001/api";
+
+export const API_BASE_URL = Platform.OS === "web" ? WEB_API_URL : LOCAL_API_URL;
+
+interface RequestOptions extends RequestInit {
+  auth?: boolean;
+}
+
+export async function apiRequest<T>(
+  endpoint: string,
+  options: RequestOptions = {},
+): Promise<T> {
+  const headers = new Headers(options.headers);
+
+  headers.set("Content-Type", "application/json");
+
+  if (options.auth) {
+    const token = await AsyncStorage.getItem("token");
+
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+  }
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  let data: unknown;
+
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error("Server returned invalid response");
+  }
+
+  if (!response.ok) {
+    const errorData = data as {
+      message?: string;
+      error?: string;
+    };
+
+    throw new Error(
+      errorData.message ||
+        errorData.error ||
+        "Something went wrong",
+    );
+  }
+
+  return data as T;
+}

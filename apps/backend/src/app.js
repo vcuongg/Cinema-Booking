@@ -5,49 +5,66 @@ const authRoutes = require("./routes/auth");
 const movieRoutes = require("./routes/movies");
 const favouriteRoutes = require("./routes/favourite");
 const showtimeRoutes = require("./routes/showtime");
-
-const sendEmail = require("./utils/sendEmail");
+const { isDbConnected } = require("./config/db");
 
 const app = express();
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+    methods: [
+      "GET",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS",
+    ],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+    ],
+  }),
+);
 
-// Routes
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 app.use("/api/auth", authRoutes);
 app.use("/api/movies", movieRoutes);
 app.use("/api/favourites", favouriteRoutes);
 app.use("/api/showtimes", showtimeRoutes);
 
-// Home
 app.get("/", (req, res) => {
-    res.send("Cinema Booking API");
+  return res.status(200).json({
+    success: true,
+    message: "Cinema Booking API is running",
+  });
 });
 
-// Test Email (Chỉ dùng khi phát triển)
-app.get("/test-email", async (req, res) => {
-    try {
-        await sendEmail(
-            "cinemabooking@gmail.com",
-            "Cinema Booking Test",
-            `
-            <h2>🎬 Cinema Booking</h2>
-            <p>Chúc mừng!</p>
-            <p>Hệ thống gửi email thành công.</p>
-            `
-        );
+app.get("/api/health", (req, res) => {
+  return res.status(200).json({
+    success: true,
+    service: "backend",
+    dbConnected: isDbConnected(),
+  });
+});
 
-        res.json({
-            success: true,
-            message: "Email sent successfully",
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
+app.use((req, res) => {
+  return res.status(404).json({
+    success: false,
+    message: `Route not found: ${req.method} ${req.originalUrl}`,
+  });
+});
+
+app.use((error, req, res, next) => {
+  console.error("Unhandled backend error:", error);
+
+  return res.status(500).json({
+    success: false,
+    message: "Internal server error",
+  });
 });
 
 module.exports = app;

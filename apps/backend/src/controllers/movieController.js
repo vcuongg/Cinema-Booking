@@ -1,101 +1,257 @@
-const Movie = require("../models/Movie");
 const mongoose = require("mongoose");
 
-// get all movies
+const Movie = require("../models/Movie");
+const { isDbConnected } = require("../config/db");
+
+const dbUnavailableResponse = {
+  success: true,
+  count: 0,
+  movies: [],
+  warning: "Database unavailable. Running in degraded mode.",
+};
+
+// GET ALL MOVIES
 const getMovies = async (req, res) => {
-  const movies = await Movie.find().sort({ createdAt: -1 });
-  res.status(200).json(movies);
-};
-
-// get now showing movies
-const getNowShowingMovies = async (req, res) => {
   try {
-    const movies = await Movie.find({
-      status: "now_showing",
-    }).sort({ releaseDate: -1 });
+    if (!isDbConnected()) {
+      return res.status(200).json(dbUnavailableResponse);
+    }
 
-    res.status(200).json(movies);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-};
-
-// get coming soon movies
-const getComingSoonMovies = async (req, res) => {
-  try {
-    const movies = await Movie.find({
-      status: "coming_soon",
-    }).sort({ releaseDate: 1 });
-
-    res.status(200).json(movies);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-};
-
-// search movies
-const searchMovies = async (req, res) => {
-  try {
-    const keyword = req.query.keyword || "";
-
-    const movies = await Movie.find({
-      title: {
-        $regex: keyword,
-        $options: "i",
-      },
+    const movies = await Movie.find().sort({
+      createdAt: -1,
     });
 
-    res.status(200).json(movies);
+    return res.status(200).json({
+      success: true,
+      count: movies.length,
+      movies,
+    });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error("Get movies error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Cannot load movies",
+    });
   }
 };
 
-// get a single movie
-const getMovie = async (req, res) => {
-  const { id } = req.params;
-
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(404).json({ error: "No such movie" });
-  }
-
-  const movie = await Movie.findById(id);
-
-  if (!movie) {
-    return res.status(404).json({ error: "No such movie" });
-  }
-
-  res.status(200).json(movie);
-};
-
-// create a new movie
-const createMovie = async (req, res) => {
-  const {
-    title,
-    description,
-    duration,
-    genre,
-    director,
-    actors,
-    posterUrl,
-    trailerUrl,
-    releaseDate,
-    status,
-    rating,
-    priceFrom,
-    isFeatured,
-  } = req.body;
-
+// GET NOW SHOWING
+const getNowShowingMovies = async (req, res) => {
   try {
-    const movie = await Movie.create({
+    if (!isDbConnected()) {
+      return res.status(200).json(dbUnavailableResponse);
+    }
+
+    const movies = await Movie.find({
+      status: "now_showing",
+    }).sort({
+      releaseDate: -1,
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: movies.length,
+      movies,
+    });
+  } catch (error) {
+    console.error("Get now showing error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Cannot load now showing movies",
+    });
+  }
+};
+
+// GET COMING SOON
+const getComingSoonMovies = async (req, res) => {
+  try {
+    if (!isDbConnected()) {
+      return res.status(200).json(dbUnavailableResponse);
+    }
+
+    const movies = await Movie.find({
+      status: "coming_soon",
+    }).sort({
+      releaseDate: 1,
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: movies.length,
+      movies,
+    });
+  } catch (error) {
+    console.error("Get coming soon error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Cannot load coming soon movies",
+    });
+  }
+};
+
+const escapeRegex = (value) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// SEARCH MOVIES
+const searchMovies = async (req, res) => {
+  try {
+    if (!isDbConnected()) {
+      return res.status(200).json(dbUnavailableResponse);
+    }
+
+    const keyword = req.query.keyword?.trim() || "";
+
+    if (!keyword) {
+      return res.status(400).json({
+        success: false,
+        message: "Search keyword is required",
+      });
+    }
+
+    const escapedKeyword = escapeRegex(keyword);
+
+    const movies = await Movie.find({
+      $or: [
+        {
+          title: {
+            $regex: escapedKeyword,
+            $options: "i",
+          },
+        },
+        {
+          genre: {
+            $regex: escapedKeyword,
+            $options: "i",
+          },
+        },
+        {
+          director: {
+            $regex: escapedKeyword,
+            $options: "i",
+          },
+        },
+        {
+          description: {
+            $regex: escapedKeyword,
+            $options: "i",
+          },
+        },
+      ],
+    }).sort({
+      releaseDate: -1,
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: movies.length,
+      movies,
+    });
+  } catch (error) {
+    console.error("Search movies error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Cannot search movies",
+    });
+  }
+};
+
+// GET MOVIE DETAIL
+const getMovie = async (req, res) => {
+  try {
+    if (!isDbConnected()) {
+      return res.status(503).json({
+        success: false,
+        message: "Database unavailable. Please try again later.",
+      });
+    }
+
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid movie ID",
+      });
+    }
+
+    const movie = await Movie.findById(id);
+
+    if (!movie) {
+      return res.status(404).json({
+        success: false,
+        message: "Movie not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      movie,
+    });
+  } catch (error) {
+    console.error("Get movie detail error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Cannot load movie detail",
+    });
+  }
+};
+
+// CREATE MOVIE
+const createMovie = async (req, res) => {
+  try {
+    if (!isDbConnected()) {
+      return res.status(503).json({
+        success: false,
+        message: "Database unavailable. Cannot create movie now.",
+      });
+    }
+
+    const {
       title,
       description,
       duration,
       genre,
+      language,
       director,
       actors,
-      posterUrl,
-      trailerUrl,
+      poster,
+      trailer,
+      releaseDate,
+      status,
+      rating,
+      priceFrom,
+      isFeatured,
+    } = req.body;
+
+    if (
+      !title?.trim() ||
+      !description?.trim() ||
+      !genre?.trim() ||
+      !duration ||
+      !releaseDate
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Title, description, genre, duration and release date are required",
+      });
+    }
+
+    const movie = await Movie.create({
+      title: title.trim(),
+      description: description.trim(),
+      duration,
+      genre: genre.trim(),
+      language,
+      director,
+      actors,
+      poster,
+      trailer,
       releaseDate,
       status,
       rating,
@@ -103,59 +259,112 @@ const createMovie = async (req, res) => {
       isFeatured,
     });
 
-    res.status(200).json(movie);
+    return res.status(201).json({
+      success: true,
+      message: "Movie created successfully",
+      movie,
+    });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error("Create movie error:", error);
+
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
-// delete a movie
-const deleteMovie = async (req, res) => {
-  const { id } = req.params;
-
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(404).json({ error: "No such movie" });
-  }
-
-  const movie = await Movie.findOneAndDelete({ _id: id });
-
-  if (!movie) {
-    return res.status(404).json({ error: "No such movie" });
-  }
-
-  res.status(200).json({
-    message: "Movie deleted",
-    movie,
-  });
-};
-
-// update a movie
+// UPDATE MOVIE
 const updateMovie = async (req, res) => {
-  const { id } = req.params;
+  try {
+    if (!isDbConnected()) {
+      return res.status(503).json({
+        success: false,
+        message: "Database unavailable. Cannot update movie now.",
+      });
+    }
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(404).json({ error: "No such movie" });
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid movie ID",
+      });
+    }
+
+    const movie = await Movie.findByIdAndUpdate(
+      id,
+      req.body,
+      {
+        new: true,
+        runValidators: true,
+      },
+    );
+
+    if (!movie) {
+      return res.status(404).json({
+        success: false,
+        message: "Movie not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Movie updated successfully",
+      movie,
+    });
+  } catch (error) {
+    console.error("Update movie error:", error);
+
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
   }
+};
 
-  const movie = await Movie.findOneAndUpdate(
-    { _id: id },
-    {
-      ...req.body,
-    },
-    {
-      new: true,
-      runValidators: true,
-    },
-  );
+// DELETE MOVIE
+const deleteMovie = async (req, res) => {
+  try {
+    if (!isDbConnected()) {
+      return res.status(503).json({
+        success: false,
+        message: "Database unavailable. Cannot delete movie now.",
+      });
+    }
 
-  if (!movie) {
-    return res.status(404).json({ error: "No such movie" });
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid movie ID",
+      });
+    }
+
+    const movie = await Movie.findByIdAndDelete(id);
+
+    if (!movie) {
+      return res.status(404).json({
+        success: false,
+        message: "Movie not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Movie deleted successfully",
+      movie,
+    });
+  } catch (error) {
+    console.error("Delete movie error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Cannot delete movie",
+    });
   }
-
-  res.status(200).json({
-    message: "Movie updated",
-    movie,
-  });
 };
 
 module.exports = {
@@ -165,6 +374,6 @@ module.exports = {
   searchMovies,
   getMovie,
   createMovie,
-  deleteMovie,
   updateMovie,
+  deleteMovie,
 };
