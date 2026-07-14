@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -14,7 +14,7 @@ import { router } from "expo-router";
 import PosterPicker from "./component/PosterPicker";
 import FormField from "./component/FormField";
 import AttributePicker from "./component/AttributePicker";
-import { createMovie } from "@/shared/services/MovieService";
+import { getMovieById, updateMovie } from "@/shared/services/MovieService";
 
 const GENRE_OPTIONS = [
   "Action",
@@ -56,7 +56,33 @@ function parseReleaseDate(value: string): string | null {
   return iso;
 }
 
-export default function MovieCreateScreen() {
+// Converts an ISO date string coming from the backend into "dd/mm/yyyy" for the input.
+function formatReleaseDate(value?: string): string {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+
+  return `${day}/${month}/${year}`;
+}
+
+type Props = {
+  movieId: string;
+};
+
+export default function MovieUpdateScreen({ movieId }: Props) {
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
   const [title, setTitle] = useState("");
   const [genre, setGenre] = useState<string[]>([]);
   const [duration, setDuration] = useState("");
@@ -73,7 +99,63 @@ export default function MovieCreateScreen() {
   const [isFeatured, setIsFeatured] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const handleCreate = async () => {
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadMovie = async () => {
+      setLoading(true);
+      setLoadError("");
+
+      try {
+        const movie = await getMovieById(movieId);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setTitle(movie.title ?? "");
+        setGenre(movie.genre ?? []);
+        setDuration(
+          movie.duration !== undefined ? String(movie.duration) : "",
+        );
+        setReleaseDate(formatReleaseDate(movie.releaseDate));
+        setDescription(movie.description ?? "");
+        setDirector(movie.director ?? "");
+        setActors((movie.actors ?? []).join(", "));
+        setPosterUrl(movie.posterUrl ?? movie.poster ?? "");
+        setTrailerUrl(movie.trailerUrl ?? movie.trailer ?? "");
+        setRating(
+          movie.rating !== undefined ? String(movie.rating) : "",
+        );
+        setPriceFrom(
+          movie.priceFrom !== undefined ? String(movie.priceFrom) : "",
+        );
+        setStatus(movie.status ?? "coming_soon");
+        setIsFeatured(Boolean(movie.isFeatured));
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        const message =
+          error instanceof Error ? error.message : "Failed to load movie";
+
+        setLoadError(message);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadMovie();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [movieId]);
+
+  const handleUpdate = async () => {
     if (
       !title.trim() ||
       !description.trim() ||
@@ -130,7 +212,7 @@ export default function MovieCreateScreen() {
     setSubmitting(true);
 
     try {
-      await createMovie({
+      await updateMovie(movieId, {
         title: title.trim(),
         description: description.trim(),
         genre,
@@ -149,18 +231,38 @@ export default function MovieCreateScreen() {
         isFeatured,
       });
 
-      Alert.alert("Success", "Movie created successfully.", [
+      Alert.alert("Success", "Movie updated successfully.", [
         { text: "OK", onPress: () => router.back() },
       ]);
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Failed to create movie";
+        error instanceof Error ? error.message : "Failed to update movie";
 
-      Alert.alert("Create movie failed", message);
+      Alert.alert("Update movie failed", message);
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color="#E50914" />
+        <Text style={styles.loadingText}>Loading movie...</Text>
+      </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <Text style={styles.errorText}>{loadError}</Text>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={22} color="#fff" />
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -169,7 +271,7 @@ export default function MovieCreateScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.title}>Create Movie</Text>
+        <Text style={styles.title}>Update Movie</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -322,13 +424,13 @@ export default function MovieCreateScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.createBtn, submitting && styles.createBtnDisabled]}
-            onPress={handleCreate}
+            onPress={handleUpdate}
             disabled={submitting}
           >
             {submitting ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.createText}>Create Movie</Text>
+              <Text style={styles.createText}>Save Changes</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -337,13 +439,28 @@ export default function MovieCreateScreen() {
   );
 }
 
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#0d141d",
     paddingHorizontal: 18,
     paddingTop: 50,
+  },
+  centerContent: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    color: "#8F98A8",
+    fontSize: 14,
+    marginTop: 12,
+  },
+  errorText: {
+    color: "#E50914",
+    fontSize: 15,
+    fontWeight: "600",
+    marginBottom: 16,
+    textAlign: "center",
   },
   header: {
     flexDirection: "row",
