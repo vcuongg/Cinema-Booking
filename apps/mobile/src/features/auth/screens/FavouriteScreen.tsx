@@ -147,9 +147,9 @@ export default function FavouriteScreen() {
           <Text style={styles.activeNavText}>Favourite</Text>
         </Pressable>
 
-        <Pressable style={styles.navItem} onPress={() => router.replace("/login")}>
+        <Pressable style={styles.navItem} onPress={() => router.replace("/profile")}>
           <Ionicons name="person-outline" size={22} color="#6B7280" />
-          <Text style={styles.navText}>Account</Text>
+          <Text style={styles.navText}>Profile</Text>
         </Pressable>
       </View>
     </SafeAreaView>

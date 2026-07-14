@@ -1,214 +1,247 @@
-import React, { useEffect, useState } from "react";
+
+import { Ionicons } from "@expo/vector-icons";
+import { router, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
   ActivityIndicator,
+  FlatList,
+  Pressable,
   StyleSheet,
-  SafeAreaView,
-  Platform,
+  Text,
+  View,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import axios from "axios";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-const API_URL =
-  Platform.OS === "android"
-    ? "http://10.0.2.2:5000/api"
-    : "http://localhost:5000/api";
-
-interface Room {
-  _id: string;
-  roomName: string;
-  totalSeats: number;
-}
-
-interface Showtime {
-  _id: string;
-  movieId: string;
-  roomId: Room;
-  showDate: string;
-  startTime: string;
-  endTime: string;
-  price: number;
-}
-
-function groupByDate(showtimes: Showtime[]): Record<string, Showtime[]> {
-  return showtimes.reduce((acc: Record<string, Showtime[]>, st) => {
-    const key = new Date(st.showDate).toDateString();
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(st);
-    return acc;
-  }, {});
-}
-
-function formatDateLabel(dateStr: string) {
-  const d = new Date(dateStr);
-  return {
-    day: d.toLocaleDateString("en-US", { weekday: "short" }),
-    date: d.getDate(),
-    month: d.toLocaleDateString("en-US", { month: "short" }),
-  };
-}
+import { showtimeService } from "@/shared/services/ShowtimeService";
+import type { ShowtimeSummary, CinemaSummary, RoomSummary } from "@/shared/types/booking";
 
 export default function ShowtimesScreen() {
-  const router = useRouter();
-  const { movieId, movieTitle } = useLocalSearchParams<{
-    movieId: string;
-    movieTitle: string;
-  }>();
+  const { movieId } = useLocalSearchParams<{ movieId: string }>();
 
-  const [showtimes, setShowtimes] = useState<Showtime[]>([]);
+  const [showtimes, setShowtimes] = useState<ShowtimeSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [selectedDate, setSelectedDate] = useState("");
 
-  useEffect(() => {
+  const [selectedDateStr, setSelectedDateStr] = useState<string>("");
+  const [selectedShowtime, setSelectedShowtime] = useState<ShowtimeSummary | null>(null);
+
+  // 1. Fetch dữ liệu suất chiếu từ API
+  const fetchShowtimes = useCallback(async () => {
     if (!movieId) return;
-    const fetchShowtimes = async () => {
-      try {
-        const res = await axios.get(`${API_URL}/showtimes`, {
-          params: { movieId },
-        });
-        setShowtimes(res.data);
-        if (res.data.length > 0) {
-          setSelectedDate(new Date(res.data[0].showDate).toDateString());
-        }
-      } catch (err: any) {
-        setError(err?.response?.data?.error || "Cannot load showtimes");
-      } finally {
-        setLoading(false);
+    try {
+      setLoading(true);
+      setError("");
+      const data = await showtimeService.getShowtimesByMovie(movieId);
+      setShowtimes(data);
+
+      // Chọn ngày đầu tiên làm mặc định nếu có dữ liệu
+      if (data.length > 0) {
+        const firstDate = new Date(data[0].showDate).toDateString();
+        setSelectedDateStr(firstDate);
       }
-    };
-    fetchShowtimes();
+    } catch (err) {
+      setError("Không thể tải lịch chiếu phim");
+    } finally {
+      setLoading(false);
+    }
   }, [movieId]);
 
-  const grouped = groupByDate(showtimes);
-  const dates = Object.keys(grouped);
-  const currentShowtimes = grouped[selectedDate] || [];
+  useEffect(() => {
+    fetchShowtimes();
+  }, [fetchShowtimes]);
 
-  const handleSelectTime = (showtime: Showtime) => {
-    router.push({
-      pathname: "/seat-selection",
-      params: {
-        showtimeId: showtime._id,
-        movieTitle: movieTitle || "",
-        startTime: showtime.startTime,
-        endTime: showtime.endTime,
-        price: String(showtime.price),
-        roomName: showtime.roomId?.roomName || "",
-        showDate: showtime.showDate,
-      },
-    });
+  // Helper format ngày hiển thị trên Card
+  const formatDateCard = (dateObj: Date) => {
+    const day = dateObj.getDate().toString().padStart(2, "0");
+    const monthStr = dateObj.toLocaleString("en-US", { month: "short" }).toUpperCase();
+    return { day, monthStr };
   };
+
+  // 2. Lấy danh sách ngày chiếu duy nhất (Unique Dates) từ DB
+  const uniqueDates = useMemo(() => {
+    const datesMap: { [key: string]: Date } = {};
+    showtimes.forEach((st) => {
+      const d = new Date(st.showDate);
+      datesMap[d.toDateString()] = d;
+    });
+    return Object.values(datesMap).sort((a, b) => a.getTime() - b.getTime());
+  }, [showtimes]);
+
+  // 3. Lọc suất chiếu của ngày đang chọn và Group theo Rạp (Cinema)
+  const cinemasWithShowtimes = useMemo(() => {
+    if (!selectedDateStr) return [];
+
+    const filtered = showtimes.filter(
+      (st) => new Date(st.showDate).toDateString() === selectedDateStr
+    );
+
+    const groupMap: {
+      [cinemaId: string]: { cinema: CinemaSummary; showtimes: ShowtimeSummary[] };
+    } = {};
+
+    filtered.forEach((st) => {
+      const room = st.roomId as RoomSummary;
+      if (!room || !room.cinemaId) return;
+
+      const cinema = room.cinemaId as CinemaSummary;
+      if (!groupMap[cinema._id]) {
+        groupMap[cinema._id] = {
+          cinema,
+          showtimes: [],
+        };
+      }
+      groupMap[cinema._id].showtimes.push(st);
+    });
+
+    return Object.values(groupMap);
+  }, [showtimes, selectedDateStr]);
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#E50000" />
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtnFallback}>
-          <Text style={styles.backBtnFallbackText}>← Go Back</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  if (showtimes.length === 0) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.emptyText}>No showtimes available.</Text>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtnFallback}>
-          <Text style={styles.backBtnFallbackText}>← Go Back</Text>
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView style={styles.loadingScreen}>
+        <ActivityIndicator size="large" color="#E50914" />
+        <Text style={styles.loadingText}>Đang tải lịch chiếu...</Text>
+      </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backBtn}>←</Text>
-        </TouchableOpacity>
+        <Pressable
+          style={styles.backButton}
+          onPress={() => {
+            if (router.canGoBack()) {
+              // Nếu có lịch sử màn hình trước đó -> Lùi về bình thường
+              router.back();
+            } else {
+              // Nếu không có lịch sử (do reload app hoặc mở từ link) -> Đẩy về trang chủ
+              router.replace("/home");
+            }
+          }}
+        >
+          <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+        </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>
-          {movieTitle}
+          Selection Showtime
         </Text>
+        <View style={{ width: 44 }} />
       </View>
 
-      <Text style={styles.sectionLabel}>SELECT DATE</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.dateRow}
-      >
-        {dates.map((dateStr) => {
-          const { day, date, month } = formatDateLabel(dateStr);
-          const isActive = selectedDate === dateStr;
-          return (
-            <TouchableOpacity
-              key={dateStr}
-              style={[styles.dateCard, isActive && styles.dateCardActive]}
-              onPress={() => setSelectedDate(dateStr)}
-            >
-              <Text style={[styles.dateDay, isActive && styles.dateTextActive]}>{day}</Text>
-              <Text style={[styles.dateNum, isActive && styles.dateTextActive]}>{date}</Text>
-              <Text style={[styles.dateMonth, isActive && styles.dateTextActive]}>{month}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+      {/* Danh sách chọn ngày */}
+      <View style={{ marginVertical: 10 }}>
+        <Text style={styles.sectionTitle}>SELECT DATE</Text>
+        
+        <View style={styles.dateListContainer}>
+          {uniqueDates.map((item) => {
+            const dateStr = item.toDateString();
+            const isActive = selectedDateStr === dateStr;
+            const { day, monthStr } = formatDateCard(item);
 
-      <Text style={styles.sectionLabel}>AVAILABLE SHOWTIMES</Text>
-      <ScrollView contentContainerStyle={styles.listContent}>
-        {currentShowtimes.map((st) => (
-          <View key={st._id} style={styles.showtimeCard}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.roomName}>{st.roomId?.roomName ?? "Unknown Room"}</Text>
-              <Text style={styles.price}>${st.price.toFixed(2)}</Text>
+            return (
+              <Pressable
+                key={dateStr} // Nhớ thêm key khi dùng map
+                style={[styles.dateCard, isActive && styles.dateCardActive]}
+                onPress={() => {
+                  setSelectedDateStr(dateStr);
+                  setSelectedShowtime(null); // Reset suất chiếu khi đổi ngày
+                }}
+              >
+                <Text style={[styles.dateMonth, isActive && styles.textActive]}>
+                  {monthStr}
+                </Text>
+                <Text style={[styles.dateDay, isActive && styles.textActive]}>
+                  {day}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* Danh sách rạp & giờ chiếu */}
+      <FlatList
+        data={cinemasWithShowtimes}
+        keyExtractor={(item) => item.cinema._id}
+        contentContainerStyle={styles.cinemaList}
+        ListHeaderComponent={<Text style={styles.sectionTitle}>AVAILABLE CINEMAS</Text>}
+        renderItem={({ item }) => (
+          <View style={styles.cinemaCard}>
+            <View style={styles.cinemaHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cinemaName}>{item.cinema.cinemaName}</Text>
+                <Text style={styles.cinemaAddress} numberOfLines={1}>
+                  📍 {item.cinema.address || "Địa chỉ đang cập nhật"}
+                </Text>
+              </View>
+              <Ionicons name="heart-outline" size={22} color="#6B7280" />
             </View>
-            <Text style={styles.timeText}>{st.startTime} → {st.endTime}</Text>
-            <TouchableOpacity style={styles.selectBtn} onPress={() => handleSelectTime(st)}>
-              <Text style={styles.selectBtnText}>Select Seats →</Text>
-            </TouchableOpacity>
+
+            <View style={styles.timeGrid}>
+              {item.showtimes.map((st) => {
+                const isSelected = selectedShowtime?._id === st._id;
+                return (
+                  <Pressable
+                    key={st._id}
+                    style={[styles.timeButton, isSelected && styles.timeButtonActive]}
+                    onPress={() => setSelectedShowtime(st)}
+                  >
+                    <Text style={[styles.timeText, isSelected && styles.textActive]}>
+                      {st.startTime}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
-        ))}
-      </ScrollView>
+        )}
+      />
+
+      {/* Footer chứa nút tiếp tục */}
+      <View style={styles.footer}>
+        <Pressable
+          style={[styles.continueButton, !selectedShowtime && styles.disabledButton]}
+          disabled={!selectedShowtime}
+          onPress={() =>
+            router.push({
+              pathname: "/seats",
+              params: { showtimeId: selectedShowtime?._id },
+            })
+          }
+        >
+          <Text style={styles.continueText}>Select Seats →</Text>
+        </Pressable>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#111" },
-  centered: { flex: 1, backgroundColor: "#111", justifyContent: "center", alignItems: "center", gap: 16 },
-  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, gap: 12 },
-  backBtn: { color: "#fff", fontSize: 22, paddingRight: 8 },
-  headerTitle: { color: "#fff", fontSize: 18, fontWeight: "700", flex: 1 },
-  sectionLabel: { color: "#666", fontSize: 11, fontWeight: "700", letterSpacing: 1.2, marginLeft: 16, marginBottom: 10, marginTop: 4 },
-  dateRow: { paddingLeft: 16, paddingRight: 8, marginBottom: 20, gap: 10, flexDirection: "row" },
-  dateCard: { width: 60, paddingVertical: 12, borderRadius: 12, backgroundColor: "#1E1E1E", alignItems: "center", gap: 2 },
-  dateCardActive: { backgroundColor: "#E50000" },
-  dateDay: { color: "#777", fontSize: 11, fontWeight: "600" },
-  dateNum: { color: "#fff", fontSize: 22, fontWeight: "800" },
-  dateMonth: { color: "#777", fontSize: 11, fontWeight: "600" },
-  dateTextActive: { color: "#fff" },
-  listContent: { paddingHorizontal: 16, paddingBottom: 32, gap: 12 },
-  showtimeCard: { backgroundColor: "#1A1A1A", borderRadius: 14, padding: 16, gap: 10, borderWidth: 1, borderColor: "#2A2A2A" },
-  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  roomName: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  price: { color: "#E50000", fontSize: 16, fontWeight: "800" },
-  timeText: { color: "#888", fontSize: 13 },
-  selectBtn: { backgroundColor: "#E50000", borderRadius: 10, paddingVertical: 12, alignItems: "center", marginTop: 4 },
-  selectBtnText: { color: "#fff", fontSize: 14, fontWeight: "700" },
-  errorText: { color: "#E50000", fontSize: 14, textAlign: "center", paddingHorizontal: 32 },
-  emptyText: { color: "#666", fontSize: 14 },
-  backBtnFallback: { marginTop: 8 },
-  backBtnFallbackText: { color: "#888", fontSize: 14 },
+  safeArea: { flex: 1, backgroundColor: "#090D12" },
+  loadingScreen: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#090D12" },
+  loadingText: { color: "#9CA3AF", fontSize: 13, marginTop: 12 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 18, height: 56 },
+  backButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#151D27", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "#29313D" },
+  headerTitle: { color: "#FFFFFF", fontSize: 18, fontWeight: "800" },
+  sectionTitle: { color: "#9CA3AF", fontSize: 11, fontWeight: "700", letterSpacing: 1, paddingHorizontal: 18, marginBottom: 10, marginTop: 12 },
+  dateListContainer: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 18, gap: 10 },
+  dateCard: { width: 62, height: 74, borderRadius: 14, backgroundColor: "#151D27", borderWidth: 1, borderColor: "#29313D", justifyContent: "center", alignItems: "center" },
+  dateCardActive: { backgroundColor: "#E50914", borderColor: "#E50914" },
+  dateMonth: { color: "#9CA3AF", fontSize: 11, fontWeight: "600" },
+  dateDay: { color: "#FFFFFF", fontSize: 20, fontWeight: "800", marginTop: 4 },
+  textActive: { color: "#FFFFFF" },
+  cinemaList: { paddingBottom: 100 },
+  cinemaCard: { backgroundColor: "#111821", marginHorizontal: 18, marginBottom: 14, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: "#29313D" },
+  cinemaHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 },
+  cinemaName: { color: "#FFFFFF", fontSize: 16, fontWeight: "800" },
+  cinemaAddress: { color: "#9CA3AF", fontSize: 12, marginTop: 4 },
+  timeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  timeButton: { paddingVertical: 10, paddingHorizontal: 18, borderRadius: 10, backgroundColor: "#151D27", borderWidth: 1, borderColor: "#29313D" },
+  timeButtonActive: { backgroundColor: "#E50914", borderColor: "#E50914" },
+  timeText: { color: "#9CA3AF", fontSize: 13, fontWeight: "700" },
+  footer: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "#111821", padding: 18, borderTopWidth: 1, borderTopColor: "#29313D" },
+  continueButton: { height: 52, borderRadius: 12, backgroundColor: "#E50914", justifyContent: "center", alignItems: "center" },
+  disabledButton: { backgroundColor: "#151D27", opacity: 0.5 },
+  continueText: { color: "#FFFFFF", fontSize: 15, fontWeight: "800" },
 });
