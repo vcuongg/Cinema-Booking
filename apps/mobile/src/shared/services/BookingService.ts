@@ -1,5 +1,3 @@
-import { Platform } from 'react-native';
-
 import {
   Booking,
   BookingCheckout,
@@ -7,11 +5,7 @@ import {
   CreateBookingRequest,
   CreateBookingResponse,
 } from '@/shared/types/booking';
-
-const API_BASE_URL =
-  Platform.OS === 'android'
-    ? 'http://10.0.2.2:5001/api'
-    : 'http://localhost:5001/api';
+import { apiRequest } from './api';
 
 interface ApiErrorBody {
   message?: string;
@@ -23,25 +17,19 @@ async function requestJson<T>(
   options: RequestInit & { token?: string } = {},
 ): Promise<T> {
   const { token, headers, ...requestOptions } = options;
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...requestOptions,
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers,
-    },
-  });
 
-  const rawBody = await response.text();
-  const data = rawBody ? JSON.parse(rawBody) : {};
-
-  if (!response.ok) {
-    const errorBody = data as ApiErrorBody;
-    throw new Error(errorBody.message || errorBody.error || `Request failed: ${response.status}`);
+  try {
+    return await apiRequest<T>(path, {
+      ...requestOptions,
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+    });
+  } catch (error) {
+    const errorBody = error as ApiErrorBody;
+    throw new Error(errorBody.message || errorBody.error || (error instanceof Error ? error.message : 'Request failed'));
   }
-
-  return data as T;
 }
 
 export async function previewBooking(

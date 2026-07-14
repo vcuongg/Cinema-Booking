@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -176,8 +177,9 @@ export default function PaymentScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [storedToken, setStoredToken] = useState('');
 
-  const token = getParamValue(params.token) || TEST_TOKEN;
+  const token = getParamValue(params.token) || storedToken || TEST_TOKEN;
   const showtimeId = getParamValue(params.showtimeId) || TEST_SHOWTIME_ID;
   const seatIds = useMemo(() => parseSeatIds(params.seatIds), [params.seatIds]);
   const canUseApi = Boolean(token && showtimeId && seatIds.length > 0);
@@ -219,6 +221,12 @@ export default function PaymentScreen() {
       setIsLoadingPreview(false);
     }
   };
+
+  useEffect(() => {
+    AsyncStorage.getItem('token')
+      .then((nextToken) => setStoredToken(nextToken || ''))
+      .catch(() => setStoredToken(''));
+  }, []);
 
   useEffect(() => {
     loadPreview('');
