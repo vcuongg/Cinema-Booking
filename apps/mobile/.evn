@@ -1,0 +1,5 @@
+# Web chạy trên chính máy tính
+EXPO_PUBLIC_API_URL_WEB=http://localhost:5001/api
+
+# Android thật chạy qua mạng Wi-Fi
+EXPO_PUBLIC_API_URL_ANDROID=http://10.0.2.2:5001/api

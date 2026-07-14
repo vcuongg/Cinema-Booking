@@ -1,13 +1,20 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 
-const ATTRIBUTES = ["IMAX", "3D Support", "Dolby Audio", "4DX"];
+const DEFAULT_ATTRIBUTES = ["IMAX", "3D Support", "Dolby Audio", "4DX"];
 
 type Props = {
   selected: string[];
   onChange: (val: string[]) => void;
+  label?: string;
+  options?: string[];
 };
 
-export default function AttributePicker({ selected, onChange }: Props) {
+export default function AttributePicker({
+  selected,
+  onChange,
+  label = "ATTRIBUTES",
+  options = DEFAULT_ATTRIBUTES,
+}: Props) {
   const toggle = (attr: string) => {
     if (selected.includes(attr)) {
       onChange(selected.filter((a) => a !== attr));
@@ -18,9 +25,9 @@ export default function AttributePicker({ selected, onChange }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>ATTRIBUTES</Text>
+      <Text style={styles.label}>{label}</Text>
       <View style={styles.grid}>
-        {ATTRIBUTES.map((attr) => {
+        {options.map((attr) => {
           const active = selected.includes(attr);
           return (
             <TouchableOpacity
