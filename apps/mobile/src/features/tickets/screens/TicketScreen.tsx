@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -165,8 +166,15 @@ export default function TicketScreen() {
   const [tickets, setTickets] = useState<TicketView[]>(demoTickets);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [storedToken, setStoredToken] = useState('');
 
-  const token = getParamValue(params.token) || TEST_TOKEN;
+  const token = getParamValue(params.token) || storedToken || TEST_TOKEN;
+
+  useEffect(() => {
+    AsyncStorage.getItem('token')
+      .then((nextToken) => setStoredToken(nextToken || ''))
+      .catch(() => setStoredToken(''));
+  }, []);
 
   useEffect(() => {
     if (!token) {
