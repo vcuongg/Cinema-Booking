@@ -150,7 +150,7 @@ export default function MovieCreateScreen() {
       });
 
       Alert.alert("Success", "Movie created successfully.", [
-        { text: "OK", onPress: () => router.back() },
+        { text: "OK", onPress: () => router.replace("/admin/DashBoardAdmin") },
       ]);
     } catch (error) {
       const message =
@@ -166,7 +166,7 @@ export default function MovieCreateScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.replace("/admin/DashBoardAdmin")}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.title}>Create Movie</Text>
@@ -315,7 +315,7 @@ export default function MovieCreateScreen() {
         <View style={styles.actions}>
           <TouchableOpacity
             style={styles.cancelBtn}
-            onPress={() => router.back()}
+            onPress={() => router.replace("/admin/DashBoardAdmin")}
             disabled={submitting}
           >
             <Text style={styles.cancelText}>Cancel</Text>

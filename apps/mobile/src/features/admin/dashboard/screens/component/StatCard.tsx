@@ -5,12 +5,14 @@ type Props = {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   value: string | number;
+  subtitle?: string;
 };
 
 export default function StatCard({
   icon,
   title,
   value,
+  subtitle,
 }: Props) {
   return (
     <View style={styles.card}>
@@ -25,20 +27,18 @@ export default function StatCard({
       <Text style={styles.title}>{title}</Text>
 
       <Text style={styles.value}>{value}</Text>
+
+      {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#rgba(25, 32, 41, 0.7)",
+    backgroundColor: "rgba(25, 32, 41, 0.7)",
     borderRadius: 20,
-
-    padding: 20,
-
-    marginHorizontal: 16,
-    marginBottom: 16,
-
+    padding: 18,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: "#222A36",
   },
@@ -66,7 +66,13 @@ const styles = StyleSheet.create({
 
   value: {
     color: "#FFFFFF",
-    fontSize: 25,
-    fontWeight: "bold",
+    fontSize: 24,
+    fontWeight: "700",
+  },
+
+  subtitle: {
+    color: "#738099",
+    fontSize: 12,
+    marginTop: 6,
   },
 });

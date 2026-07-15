@@ -154,7 +154,7 @@ export default function AddShowtimeScreen() {
   const selectedRoom = availableRooms.find((item) => item._id === roomId);
 
   const handleCancel = () => {
-    router.back();
+    router.replace("/admin/DashBoardAdmin");
   };
 
   const handleSave = async () => {
@@ -197,7 +197,7 @@ export default function AddShowtimeScreen() {
 
       Alert.alert("Success", "Showtime created successfully");
 
-      router.back();
+      router.replace("/admin/DashBoardAdmin");
     } catch (err: any) {
       Alert.alert("Error", err.message);
     }

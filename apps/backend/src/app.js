@@ -5,6 +5,7 @@ const authRoutes = require("./routes/auth");
 const movieRoutes = require("./routes/movies");
 const favouriteRoutes = require("./routes/favourite");
 const showtimeRoutes = require("./routes/showtime");
+const roomRoutes = require("./routes/room");
 
 const bookingRoutes = require("./routes/booking");
 const paymentRoutes = require("./routes/payment");
@@ -18,18 +19,8 @@ app.use(
   cors({
     origin: true,
     credentials: true,
-    methods: [
-      "GET",
-      "POST",
-      "PUT",
-      "PATCH",
-      "DELETE",
-      "OPTIONS",
-    ],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-    ],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
 
@@ -40,6 +31,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/movies", movieRoutes);
 app.use("/api/favourites", favouriteRoutes);
 app.use("/api/showtimes", showtimeRoutes);
+app.use("/api/rooms", roomRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/payments", paymentRoutes);
 

@@ -57,7 +57,7 @@ export default function ManageShowtimeScreen() {
     return unsubscribe;
   }, [navigation]);
   const handleGoBack = () => {
-    router.back();
+    router.replace("/admin/DashBoardAdmin");
   };
 
   const handleAddShowtime = (movieId: string) => {

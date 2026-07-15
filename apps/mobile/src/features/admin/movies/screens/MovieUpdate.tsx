@@ -232,7 +232,7 @@ export default function MovieUpdateScreen({ movieId }: Props) {
       });
 
       Alert.alert("Success", "Movie updated successfully.", [
-        { text: "OK", onPress: () => router.back() },
+        { text: "OK", onPress: () => router.replace("/admin/DashBoardAdmin") },
       ]);
     } catch (error) {
       const message =
@@ -257,7 +257,7 @@ export default function MovieUpdateScreen({ movieId }: Props) {
     return (
       <View style={[styles.container, styles.centerContent]}>
         <Text style={styles.errorText}>{loadError}</Text>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.replace("/admin/DashBoardAdmin")}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -268,7 +268,7 @@ export default function MovieUpdateScreen({ movieId }: Props) {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.replace("/admin/DashBoardAdmin")}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.title}>Update Movie</Text>
@@ -417,7 +417,7 @@ export default function MovieUpdateScreen({ movieId }: Props) {
         <View style={styles.actions}>
           <TouchableOpacity
             style={styles.cancelBtn}
-            onPress={() => router.back()}
+            onPress={() => router.replace("/admin/DashBoardAdmin")}
             disabled={submitting}
           >
             <Text style={styles.cancelText}>Cancel</Text>

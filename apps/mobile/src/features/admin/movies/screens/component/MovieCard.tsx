@@ -15,12 +15,14 @@ interface MovieCardProps {
 }
 
 export default function MovieCard({ movie }: MovieCardProps) {
+  const posterUri = movie.poster || movie.posterUrl || "";
+
   return (
     <View style={styles.card}>
-      {movie.poster ? (
+      {posterUri ? (
         <Image
           source={{
-            uri: movie.poster,
+            uri: posterUri,
           }}
           style={styles.poster}
           resizeMode="cover"
