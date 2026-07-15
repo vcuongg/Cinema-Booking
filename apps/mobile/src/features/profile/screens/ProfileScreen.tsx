@@ -8,6 +8,7 @@ import {
   Image,
   ActivityIndicator,
   Pressable,
+  TextInput,
   Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
