@@ -1,8 +1,10 @@
+import { Ionicons } from '@expo/vector-icons';
+import type { Href } from 'expo-router';
 import {
-  Tabs,
   TabList,
-  TabTrigger,
   TabSlot,
+  Tabs,
+  TabTrigger,
   TabTriggerSlotProps,
   TabListProps,
 } from 'expo-router/ui';

@@ -26,6 +26,12 @@ const movieSchema = new mongoose.Schema(
       min: [1, "Duration must be greater than 0"],
     },
 
+    language: {
+      type: String,
+      default: "English",
+      trim: true,
+    },
+
     director: {
       type: String,
       default: "",
@@ -37,7 +43,19 @@ const movieSchema = new mongoose.Schema(
       default: [],
     },
 
+    poster: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     posterUrl: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    trailer: {
       type: String,
       default: "",
       trim: true,
