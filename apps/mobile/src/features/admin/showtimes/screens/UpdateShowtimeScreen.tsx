@@ -219,9 +219,13 @@ export default function UpdateShowtimeScreen() {
 
       console.log("After back");
     } catch (error: any) {
-      console.log(error.response?.data);
+      console.log(error);
 
-      Alert.alert("Error", error.response?.data?.error ?? error.message);
+      if (Platform.OS === "web") {
+        window.alert(error.message);
+      } else {
+        Alert.alert("Error", error.message);
+      }
     }
   };
 
