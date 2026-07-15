@@ -1,5 +1,4 @@
 import { apiRequest } from './api';
-
 import { ShowtimeSummary } from '@/shared/types/booking';
 import {
   CreateShowtimeRequest,
@@ -9,6 +8,7 @@ import {
   UpdateShowtimeRequest,
 } from '@/shared/types/showtime';
 
+// --- TYPES & HELPERS ---
 export interface SeatStatus {
   _id: string;
   seatRow: string;
@@ -29,6 +29,8 @@ function normalizeSeat(seat: Omit<SeatStatus, 'seatName'>): SeatStatus {
     seatName: `${seat.seatRow}${seat.seatNumber}`,
   };
 }
+
+
 
 export async function getShowtimes(): Promise<Showtime[]> {
   return apiRequest<Showtime[]>('/showtimes');
@@ -74,20 +76,26 @@ export async function deleteShowtime(id: string): Promise<void> {
   });
 }
 
-export async function getShowtimesByMovie(movieId: string): Promise<ShowtimeSummary[]> {
-  return apiRequest<ShowtimeSummary[]>(
-    `/showtimes/movie?movieId=${encodeURIComponent(movieId)}`,
-  );
-}
+///////////////////////////////////////////////////
 
-export async function getSeatsByShowtime(showtimeId: string): Promise<{
-  showtime: ShowtimeSummary;
-  seats: SeatStatus[];
-}> {
-  const data = await apiRequest<SeatsResponse>(`/showtimes/${showtimeId}/seats`);
+export const showtimeService = {
+  getShowtimesByMovie: async (movieId: string): Promise<ShowtimeSummary[]> => {
+    // Sử dụng apiRequest của dự án thay vì fetch thô
+    return apiRequest<ShowtimeSummary[]>(
+      `/showtimes/movie?movieId=${encodeURIComponent(movieId)}`
+    );
+  },
 
-  return {
-    showtime: data.showtime,
-    seats: data.seats.map(normalizeSeat),
-  };
-}
+  getSeatsByShowtime: async (showtimeId: string): Promise<{
+    showtime: ShowtimeSummary;
+    seats: SeatStatus[];
+  }> => {
+    // Tận dụng apiRequest và hàm normalizeSeat cực hay của team member
+    const data = await apiRequest<SeatsResponse>(`/showtimes/${showtimeId}/seats`);
+
+    return {
+      showtime: data.showtime,
+      seats: data.seats.map(normalizeSeat),
+    };
+  },
+};

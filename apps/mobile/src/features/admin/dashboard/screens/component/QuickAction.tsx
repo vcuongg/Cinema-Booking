@@ -21,6 +21,11 @@ const actions: Action[] = [
     link: "/admin/MoviesManagement" as Href,
   },
   {
+    title: "Manage Rooms",
+    icon: "grid",
+    link: "/admin/RoomsManagement" as Href,
+  },
+  {
     title: "Manage Cinemas",
     icon: "business",
     link: "/admin/cinemas" as Href,
@@ -28,7 +33,7 @@ const actions: Action[] = [
   {
     title: "Manage Showtimes",
     icon: "time",
-    link: "/admin/showtimes" as Href,
+    link: "/admin/ShowtimeManagement" as Href,
   },
   {
     title: "Manage Users",

@@ -414,16 +414,15 @@ export default function MovieDetailScreen() {
                             </Text>
                         </View>
 
-                        <Pressable style={styles.bookButton} onPress={openShowtimes}>
-                            <Ionicons
-                                name="ticket-outline"
-                                size={20}
-                                color="#FFFFFF"
-                            />
-
-                            <Text style={styles.bookButtonText}>
-                                Book Ticket
-                            </Text>
+                        <Pressable
+                            style={styles.bookButton}
+                            onPress={() => router.push({
+                                pathname: "/showtimes",
+                                params: { movieId: movie?._id } // Đổi từ id -> movieId
+                            })}
+                        >
+                            <Ionicons name="ticket-outline" size={20} color="#FFFFFF" />
+                            <Text style={styles.bookButtonText}>Book Ticket</Text>
                         </Pressable>
                     </View>
                 </View>

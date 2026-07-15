@@ -39,12 +39,16 @@ export default function LoginScreen() {
     try {
       setLoading(true);
 
-      await authService.login({
+      const response = await authService.login({
         account: normalizedAccount,
         password,
       });
 
-      router.replace("/home");
+      if (response.user.role === "admin") {
+        router.replace("/admin/DashBoardAdmin");
+      } else {
+        router.replace("/home");
+      }
     } catch (error) {
       const message =
         error instanceof Error

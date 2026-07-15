@@ -27,11 +27,7 @@ import {
 
 import { LinearGradient } from "expo-linear-gradient";
 
-let DateTimePicker: any = null;
-
-if (Platform.OS !== "web") {
-  DateTimePicker = require("@react-native-community/datetimepicker").default;
-}
+import DateTimePicker from "@/shared/components/DateTimePicker";
 import { useRouter, useLocalSearchParams } from "expo-router";
 
 import {
@@ -215,7 +211,7 @@ export default function UpdateShowtimeScreen() {
 
       console.log("Before back");
 
-      router.back();
+      router.replace("/admin/DashBoardAdmin");
 
       console.log("After back");
     } catch (error: any) {
@@ -247,7 +243,7 @@ export default function UpdateShowtimeScreen() {
           <View style={styles.header}>
             <TouchableOpacity
               style={styles.backBtn}
-              onPress={() => router.back()}
+              onPress={() => router.replace("/admin/DashBoardAdmin")}
             >
               <Ionicons name="arrow-back" size={20} color={COLORS.red} />
 
@@ -545,7 +541,7 @@ export default function UpdateShowtimeScreen() {
           <View style={styles.actionRow}>
             <TouchableOpacity
               style={styles.cancelBtn}
-              onPress={() => router.back()}
+              onPress={() => router.replace("/admin/DashBoardAdmin")}
             >
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>

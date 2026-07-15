@@ -3,8 +3,11 @@ const mongoose = require("mongoose");
 const Booking = require("../models/Booking");
 const Seat = require("../models/Seat");
 const Showtime = require("../models/Showtime");
+const Movie = require("../models/Movie");
+const User = require("../models/User");
 const { createPaymentLink } = require("../services/payosService");
 const generateTicketCode = require("../utils/ticketCode");
+const { isDbConnected } = require("../config/db");
 
 const PAYMENT_METHODS = ["simulated", "payos"];
 const SERVICE_FEE = 2500;
@@ -41,7 +44,9 @@ const populateBooking = (query) =>
     .populate("seats.seatId");
 
 const getPromoDiscount = (orderAmount, promoCode) => {
-  const code = String(promoCode || "").trim().toUpperCase();
+  const code = String(promoCode || "")
+    .trim()
+    .toUpperCase();
 
   if (!code) {
     return {
@@ -93,7 +98,11 @@ const buildPriceSummary = ({ seatCount, seatPrice, promoCode }) => {
 };
 
 const generatePayosOrderCode = () =>
-  Number(`${Date.now()}${Math.floor(Math.random() * 1000).toString().padStart(3, "0")}`);
+  Number(
+    `${Date.now()}${Math.floor(Math.random() * 1000)
+      .toString()
+      .padStart(3, "0")}`,
+  );
 
 const buildDefaultUrl = (req, path) => {
   const publicApiUrl = process.env.API_PUBLIC_URL;
@@ -148,7 +157,9 @@ const validateBookingInput = ({ showtimeId, seatIds, paymentMethod }) => {
 
   const uniqueSeatIds = [...new Set(seatIds.map(String))];
 
-  if (uniqueSeatIds.some((seatId) => !mongoose.Types.ObjectId.isValid(seatId))) {
+  if (
+    uniqueSeatIds.some((seatId) => !mongoose.Types.ObjectId.isValid(seatId))
+  ) {
     return {
       status: 400,
       message: "Invalid seatIds",
@@ -409,7 +420,9 @@ const createBooking = async (req, res) => {
         paidAt: new Date(),
       });
 
-      const populatedBooking = await populateBooking(Booking.findById(booking._id));
+      const populatedBooking = await populateBooking(
+        Booking.findById(booking._id),
+      );
 
       return res.status(201).json({
         success: true,
@@ -469,11 +482,14 @@ const createBooking = async (req, res) => {
       booking.payosStatus = paymentData.status || "PENDING";
       await booking.save();
 
-      const populatedBooking = await populateBooking(Booking.findById(booking._id));
+      const populatedBooking = await populateBooking(
+        Booking.findById(booking._id),
+      );
 
       return res.status(201).json({
         success: true,
-        message: "Payment link created. Complete payment to receive your ticket.",
+        message:
+          "Payment link created. Complete payment to receive your ticket.",
         booking: populatedBooking,
         checkout: buildCheckoutResponse({
           showtime: checkoutData.showtime,
@@ -556,12 +572,9 @@ const getBookingById = async (req, res) => {
   }
 
   try {
-    await expirePendingBookings(
-      req.user.role === "admin" ? {} : { userId },
-    );
+    await expirePendingBookings(req.user.role === "admin" ? {} : { userId });
 
-    const query =
-      req.user.role === "admin" ? { _id: id } : { _id: id, userId };
+    const query = req.user.role === "admin" ? { _id: id } : { _id: id, userId };
     const booking = await populateBooking(Booking.findOne(query));
 
     if (!booking) {
@@ -583,9 +596,133 @@ const getBookingById = async (req, res) => {
   }
 };
 
+// GET /api/bookings/admin/summary
+const getAdminBookingSummary = async (req, res) => {
+  if (!isDbConnected()) {
+    return res.status(200).json({
+      success: true,
+      summary: {
+        totalRevenue: 0,
+        ticketsSold: 0,
+        totalBookings: 0,
+        totalMovies: 0,
+        totalShowtimes: 0,
+        totalCustomers: 0,
+        topMovies: [],
+      },
+      warning: "Database unavailable. Running in degraded mode.",
+    });
+  }
+
+  try {
+    const salesMatch = {
+      bookingStatus: "confirmed",
+      paymentStatus: "paid",
+    };
+
+    const [
+      bookingTotals,
+      topMovies,
+      totalMovies,
+      totalShowtimes,
+      totalCustomers,
+    ] = await Promise.all([
+      Booking.aggregate([
+        { $match: salesMatch },
+        {
+          $group: {
+            _id: null,
+            totalRevenue: { $sum: "$totalPrice" },
+            totalBookings: { $sum: 1 },
+            ticketsSold: {
+              $sum: {
+                $size: { $ifNull: ["$seats", []] },
+              },
+            },
+          },
+        },
+      ]),
+      Booking.aggregate([
+        { $match: salesMatch },
+        {
+          $lookup: {
+            from: "showtimes",
+            localField: "showtimeId",
+            foreignField: "_id",
+            as: "showtime",
+          },
+        },
+        { $unwind: "$showtime" },
+        {
+          $lookup: {
+            from: "movies",
+            localField: "showtime.movieId",
+            foreignField: "_id",
+            as: "movie",
+          },
+        },
+        { $unwind: "$movie" },
+        {
+          $group: {
+            _id: "$movie._id",
+            title: { $first: "$movie.title" },
+            poster: {
+              $first: {
+                $ifNull: ["$movie.poster", "$movie.posterUrl"],
+              },
+            },
+            ticketsSold: {
+              $sum: {
+                $size: { $ifNull: ["$seats", []] },
+              },
+            },
+            revenue: { $sum: "$totalPrice" },
+          },
+        },
+        { $sort: { ticketsSold: -1, revenue: -1 } },
+        { $limit: 5 },
+      ]),
+      Movie.countDocuments(),
+      Showtime.countDocuments(),
+      User.countDocuments({ role: "customer" }),
+    ]);
+
+    const totals = bookingTotals[0] || {
+      totalRevenue: 0,
+      totalBookings: 0,
+      ticketsSold: 0,
+    };
+
+    return res.status(200).json({
+      success: true,
+      summary: {
+        totalRevenue: totals.totalRevenue,
+        ticketsSold: totals.ticketsSold,
+        totalBookings: totals.totalBookings,
+        totalMovies,
+        totalShowtimes,
+        totalCustomers,
+        topMovies: topMovies.map((movie) => ({
+          movieId: movie._id,
+          title: movie.title,
+          poster: movie.poster || "",
+          ticketsSold: movie.ticketsSold,
+          revenue: movie.revenue,
+        })),
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   previewBooking,
   createBooking,
   getMyBookings,
   getBookingById,
+  getAdminBookingSummary,
 };

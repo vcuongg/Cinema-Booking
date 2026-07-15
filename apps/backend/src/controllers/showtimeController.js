@@ -419,20 +419,16 @@ const getShowtimesByMovie = async (req, res) => {
   }
 
   try {
-    const showtimes = await Showtime.find({
-      movieId,
-    })
-      .populate("movieId")
+    const showtimes = await Showtime.find({ movieId })
       .populate({
         path: "roomId",
+        select: "roomName totalSeats",
         populate: {
           path: "cinemaId",
+          select: "cinemaName address city", // Thêm các trường cần thiết
         },
       })
-      .sort({
-        showDate: 1,
-        startTime: 1,
-      });
+      .sort({ showDate: 1, startTime: 1 });
 
     res.status(200).json(showtimes);
   } catch (error) {
