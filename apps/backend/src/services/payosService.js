@@ -8,8 +8,8 @@ const sortObject = (data) =>
     .reduce((result, key) => {
       const value = data[key];
 
-      if (value !== undefined && value !== null) {
-        result[key] = value;
+      if (value !== undefined) {
+        result[key] = value === null ? "" : value;
       }
 
       return result;

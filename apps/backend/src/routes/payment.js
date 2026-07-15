@@ -5,12 +5,15 @@ const {
   handlePayosCancel,
   handlePayosReturn,
   handlePayosWebhook,
+  handlePayosWebhookCheck,
 } = require("../controllers/paymentController");
 const protect = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
 router.post("/payos/webhook", handlePayosWebhook);
+router.get("/payos/webhook", handlePayosWebhookCheck);
+router.head("/payos/webhook", handlePayosWebhookCheck);
 router.post("/payos/confirm-webhook", protect, confirmPayosWebhook);
 router.get("/payos/return", handlePayosReturn);
 router.get("/payos/cancel", handlePayosCancel);
