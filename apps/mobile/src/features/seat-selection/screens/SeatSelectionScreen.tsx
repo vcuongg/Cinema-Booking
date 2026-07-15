@@ -1,390 +1,261 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
-import { Href, router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+// app/seats.tsx hoặc màn hình SeatSelectionScreen tương ứng của bạn
+import { Ionicons } from "@expo/vector-icons";
+import { router, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { getSeatsByShowtime, SeatStatus } from '@/shared/services/ShowtimeService';
-import { ShowtimeSummary } from '@/shared/types/booking';
-
-function getParamValue(value?: string | string[]) {
-  return Array.isArray(value) ? value[0] || '' : value || '';
-}
-
-function formatDate(value?: string) {
-  if (!value) {
-    return 'N/A';
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
-
-function formatCurrency(value: number) {
-  return `${Math.round(value).toLocaleString('vi-VN')} VND`;
-}
+import { showtimeService } from "@/shared/services/ShowtimeService";
+import type { ShowtimeSummary, SelectedSeat } from "@/shared/types/booking";
 
 export default function SeatSelectionScreen() {
-  const params = useLocalSearchParams<{ showtimeId?: string | string[] }>();
-  const showtimeId = getParamValue(params.showtimeId);
+  const { showtimeId } = useLocalSearchParams<{ showtimeId: string }>();
+
   const [showtime, setShowtime] = useState<ShowtimeSummary | null>(null);
-  const [seats, setSeats] = useState<SeatStatus[]>([]);
-  const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([]);
+  const [seats, setSeats] = useState<SelectedSeat[]>([]);
+  const [selectedSeats, setSelectedSeats] = useState<SelectedSeat[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
-  const loadSeats = useCallback(async () => {
-    if (!showtimeId) {
-      setError('Showtime ID is missing');
-      setLoading(false);
-      return;
-    }
-
+  // Load ghế của suất chiếu
+  const loadSeatsData = useCallback(async () => {
+    if (!showtimeId) return;
     try {
-      setError('');
-      const data = await getSeatsByShowtime(showtimeId);
+      setLoading(true);
+      setError("");
+      const data = await showtimeService.getSeatsByShowtime(showtimeId);
       setShowtime(data.showtime);
       setSeats(data.seats);
-      setSelectedSeatIds((current) =>
-        current.filter((seatId) => data.seats.some((seat) => seat._id === seatId && !seat.isBooked)),
-      );
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Unable to load seats');
+    } catch (err) {
+      setError("Không thể tải sơ đồ ghế");
     } finally {
       setLoading(false);
     }
   }, [showtimeId]);
 
   useEffect(() => {
-    loadSeats();
-  }, [loadSeats]);
+    loadSeatsData();
+  }, [loadSeatsData]);
 
-  const selectedSeats = useMemo(
-    () => seats.filter((seat) => selectedSeatIds.includes(seat._id)),
-    [seats, selectedSeatIds],
-  );
-  const totalPrice = (showtime?.price || 0) * selectedSeats.length;
+  // Nhóm ghế theo từng hàng (Row) để vẽ Grid
+  const groupedSeats = useMemo(() => {
+    const map: { [row: string]: SelectedSeat[] } = {};
+    seats.forEach((seat) => {
+      if (!map[seat.seatRow]) {
+        map[seat.seatRow] = [];
+      }
+      map[seat.seatRow].push(seat);
+    });
 
-  const toggleSeat = (seat: SeatStatus) => {
-    if (seat.isBooked) {
-      return;
+    // Sắp xếp các ghế trong hàng theo số thứ tự tăng dần
+    Object.keys(map).forEach((row) => {
+      map[row].sort((a, b) => a.seatNumber - b.seatNumber);
+    });
+
+    return Object.keys(map)
+      .sort()
+      .map((row) => ({
+        row,
+        data: map[row],
+      }));
+  }, [seats]);
+
+  // Logic chọn / bỏ chọn ghế
+  const toggleSeat = (seat: SelectedSeat) => {
+    // Không cho chọn ghế đã có người đặt trước
+    // (Ở đây map với backend: backend trả về trường `isBooked` trong seat)
+    const rawSeat = seat as any; 
+    if (rawSeat.isBooked) return;
+
+    const isAlreadySelected = selectedSeats.some((s) => s._id === seat._id);
+    if (isAlreadySelected) {
+      setSelectedSeats((prev) => prev.filter((s) => s._id !== seat._id));
+    } else {
+      setSelectedSeats((prev) => [...prev, seat]);
     }
-
-    setSelectedSeatIds((current) =>
-      current.includes(seat._id)
-        ? current.filter((seatId) => seatId !== seat._id)
-        : [...current, seat._id],
-    );
   };
 
-  const continueToPayment = async () => {
-    if (!showtimeId || selectedSeatIds.length === 0) {
-      return;
-    }
+  // Tính tổng tiền dựa trên số ghế đã chọn
+  const totalPrice = useMemo(() => {
+    if (!showtime) return 0;
+    return selectedSeats.length * showtime.price;
+  }, [selectedSeats, showtime]);
 
-    const token = await AsyncStorage.getItem('token');
+  const handleContinue = () => {
+    if (selectedSeats.length === 0) return;
 
-    if (!token) {
-      router.replace('/login');
-      return;
-    }
-
+    // Chuyển sang màn hình Preview thanh toán (Sẽ dựng ở bước sau)
     router.push({
-      pathname: '/payment',
+      pathname: "/payment-preview",
       params: {
-        showtimeId,
-        seatIds: selectedSeatIds.join(','),
+        showtimeId: showtime?._id,
+        seatIds: selectedSeats.map((s) => s._id),
       },
-    } as Href);
+    });
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.loadingScreen}>
+        <ActivityIndicator size="large" color="#E50914" />
+        <Text style={styles.loadingText}>Đang tải sơ đồ ghế...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      {/* Header */}
       <View style={styles.header}>
-        <Pressable style={styles.iconButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color="#fff" />
+        <Pressable style={styles.backButton} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
         </Pressable>
-
-        <View style={styles.headerText}>
-          <Text style={styles.eyebrow}>Select Seats</Text>
-          <Text style={styles.title}>
-            {showtime ? `${formatDate(showtime.showDate)} - ${showtime.startTime}` : 'Choose your seats'}
+        <View style={{ alignItems: "center" }}>
+          <Text style={styles.headerTitle}>Empire Cinema</Text>
+          <Text style={styles.headerSubtitle}>
+            Suất chiếu: {showtime?.startTime || "N/A"}
           </Text>
+        </View>
+        <Ionicons name="film-outline" size={24} color="#FFFFFF" />
+      </View>
+
+      {/* Chỉ dẫn chú thích trạng thái ghế */}
+      <View style={styles.legendContainer}>
+        <View style={styles.legendItem}>
+          <View style={styles.legendBox} />
+          <Text style={styles.legendText}>Available</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendBox, styles.legendSelected]} />
+          <Text style={styles.legendText}>Selected</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendBox, styles.legendBooked]} />
+          <Text style={styles.legendText}>Booked</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendBox, styles.legendVIP]} />
+          <Text style={styles.legendText}>VIP</Text>
         </View>
       </View>
 
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#E50914" />
-          <Text style={styles.helperText}>Loading seats...</Text>
-        </View>
-      ) : (
-        <>
-          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-            {!!error && <Text style={styles.errorText}>{error}</Text>}
+      {/* Sơ đồ màn hình Screen */}
+      <View style={styles.screenIndicator}>
+        <View style={styles.screenLine} />
+        <Text style={styles.screenText}>SCREEN</Text>
+      </View>
 
-            {!error && (
-              <>
-                <View style={styles.screenBox}>
-                  <Text style={styles.screenText}>SCREEN</Text>
-                </View>
+      {/* Vẽ Grid Sơ đồ ghế */}
+      <ScrollView contentContainerStyle={styles.seatScroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.gridContainer}>
+          {groupedSeats.map(({ row, data }) => (
+            <View key={row} style={styles.rowWrapper}>
+              {/* Tên hàng ghế bên trái */}
+              <Text style={styles.rowLabel}>{row}</Text>
 
-                <View style={styles.legendRow}>
-                  <LegendDot color="#151D27" label="Available" />
-                  <LegendDot color="#E50914" label="Selected" />
-                  <LegendDot color="#3E4654" label="Booked" />
-                </View>
+              {/* Các ghế trong hàng */}
+              <View style={styles.seatRow}>
+                {data.map((seat) => {
+                  const rawSeat = seat as any;
+                  const isBooked = rawSeat.isBooked;
+                  const isSelected = selectedSeats.some((s) => s._id === seat._id);
+                  const isVIP = seat.seatType === "vip";
 
-                <View style={styles.seatGrid}>
-                  {seats.map((seat) => {
-                    const selected = selectedSeatIds.includes(seat._id);
-
-                    return (
-                      <Pressable
-                        key={seat._id}
-                        disabled={seat.isBooked}
-                        onPress={() => toggleSeat(seat)}
+                  return (
+                    <Pressable
+                      key={seat._id}
+                      style={[
+                        styles.seat,
+                        isVIP && styles.seatVIPBorder,
+                        isSelected && styles.seatSelected,
+                        isBooked && styles.seatBooked,
+                      ]}
+                      disabled={isBooked}
+                      onPress={() => toggleSeat(seat)}
+                    >
+                      <Text
                         style={[
-                          styles.seatButton,
-                          seat.seatType === 'vip' && styles.vipSeat,
-                          selected && styles.selectedSeat,
-                          seat.isBooked && styles.bookedSeat,
-                        ]}>
-                        <Text
-                          style={[
-                            styles.seatText,
-                            selected && styles.selectedSeatText,
-                            seat.isBooked && styles.bookedSeatText,
-                          ]}>
-                          {seat.seatName}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </>
-            )}
-          </ScrollView>
+                          styles.seatNumberText,
+                          isSelected && styles.textWhite,
+                          isBooked && styles.textBooked,
+                        ]}
+                      >
+                        {seat.seatNumber}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
 
-          <View style={styles.footer}>
-            <View>
-              <Text style={styles.footerLabel}>{selectedSeats.length} seats selected</Text>
-              <Text style={styles.footerValue}>{formatCurrency(totalPrice)}</Text>
+              {/* Tên hàng ghế bên phải */}
+              <Text style={styles.rowLabel}>{row}</Text>
             </View>
+          ))}
+        </View>
+      </ScrollView>
 
-            <Pressable
-              disabled={selectedSeatIds.length === 0}
-              onPress={continueToPayment}
-              style={[styles.continueButton, selectedSeatIds.length === 0 && styles.disabledButton]}>
-              <Text style={styles.continueText}>Continue</Text>
-              <Ionicons name="arrow-forward" size={18} color="#fff" />
-            </Pressable>
-          </View>
-        </>
-      )}
+      {/* Thanh toán ở cuối màn hình */}
+      <View style={styles.bottomBar}>
+        <View>
+          <Text style={styles.priceLabel}>TOTAL PRICE</Text>
+          <Text style={styles.priceValue}>
+            {totalPrice.toLocaleString("vi-VN")}đ
+          </Text>
+        </View>
+        <Pressable
+          style={[styles.continueBtn, selectedSeats.length === 0 && styles.disabledBtn]}
+          disabled={selectedSeats.length === 0}
+          onPress={handleContinue}
+        >
+          <Text style={styles.continueBtnText}>Continue →</Text>
+        </Pressable>
+      </View>
     </SafeAreaView>
   );
 }
 
-function LegendDot({ color, label }: { color: string; label: string }) {
-  return (
-    <View style={styles.legendItem}>
-      <View style={[styles.legendDot, { backgroundColor: color }]} />
-      <Text style={styles.legendText}>{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#090D12',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingHorizontal: 18,
-    paddingTop: 14,
-    paddingBottom: 12,
-  },
-  iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#151D27',
-    borderWidth: 1,
-    borderColor: '#29313D',
-  },
-  headerText: {
-    flex: 1,
-  },
-  eyebrow: {
-    color: '#E50914',
-    fontSize: 12,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  title: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: '900',
-    marginTop: 3,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  content: {
-    padding: 18,
-    paddingBottom: 110,
-  },
-  helperText: {
-    color: '#9CA3AF',
-    fontSize: 14,
-  },
-  errorText: {
-    color: '#FF9E98',
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  screenBox: {
-    height: 42,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#1F2937',
-    borderWidth: 1,
-    borderColor: '#374151',
-    marginBottom: 18,
-  },
-  screenText: {
-    color: '#9CA3AF',
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 0,
-  },
-  legendRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 18,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
-  legendDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: '#4B5563',
-  },
-  legendText: {
-    color: '#9CA3AF',
-    fontSize: 12,
-  },
-  seatGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 9,
-    justifyContent: 'center',
-  },
-  seatButton: {
-    width: 54,
-    height: 44,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#151D27',
-    borderWidth: 1,
-    borderColor: '#29313D',
-  },
-  vipSeat: {
-    borderColor: '#A16207',
-    backgroundColor: '#241A0A',
-  },
-  selectedSeat: {
-    backgroundColor: '#E50914',
-    borderColor: '#FF9E98',
-  },
-  bookedSeat: {
-    backgroundColor: '#3E4654',
-    borderColor: '#4B5563',
-  },
-  seatText: {
-    color: '#D1D5DB',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  selectedSeatText: {
-    color: '#fff',
-  },
-  bookedSeatText: {
-    color: '#9CA3AF',
-  },
-  footer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    minHeight: 92,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    backgroundColor: '#101720',
-    borderTopWidth: 1,
-    borderTopColor: '#29313D',
-  },
-  footerLabel: {
-    color: '#9CA3AF',
-    fontSize: 12,
-  },
-  footerValue: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '900',
-    marginTop: 4,
-  },
-  continueButton: {
-    minHeight: 50,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: 12,
-    paddingHorizontal: 18,
-    backgroundColor: '#E50914',
-  },
-  disabledButton: {
-    opacity: 0.45,
-  },
-  continueText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '900',
-  },
+  safeArea: { flex: 1, backgroundColor: "#090D12" },
+  loadingScreen: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#090D12" },
+  loadingText: { color: "#9CA3AF", fontSize: 13, marginTop: 12 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 18, height: 56 },
+  backButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#151D27", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "#29313D" },
+  headerTitle: { color: "#FFFFFF", fontSize: 16, fontWeight: "800" },
+  headerSubtitle: { color: "#9CA3AF", fontSize: 11, marginTop: 2 },
+  legendContainer: { flexDirection: "row", justifyContent: "space-around", paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#151D27" },
+  legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
+  legendBox: { width: 14, height: 14, borderRadius: 4, backgroundColor: "#151D27", borderWidth: 1, borderColor: "#29313D" },
+  legendSelected: { backgroundColor: "#E50914", borderColor: "#E50914" },
+  legendBooked: { backgroundColor: "#111821", borderColor: "rgba(255,255,255,0.05)", opacity: 0.3 },
+  legendVIP: { borderColor: "#FFD166" },
+  legendText: { color: "#9CA3AF", fontSize: 11, fontWeight: "500" },
+  screenIndicator: { alignItems: "center", marginTop: 22, marginBottom: 14 },
+  screenLine: { width: "70%", height: 3, backgroundColor: "#5E252B", borderRadius: 999 },
+  screenText: { color: "#6B7280", fontSize: 9, fontWeight: "800", letterSpacing: 3, marginTop: 6 },
+  seatScroll: { paddingBottom: 110 },
+  gridContainer: { alignItems: "center", paddingHorizontal: 10, marginTop: 10 },
+  rowWrapper: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 },
+  rowLabel: { color: "#4B5563", fontSize: 12, fontWeight: "bold", width: 14, textAlign: "center" },
+  seatRow: { flexDirection: "row", gap: 6 },
+  seat: { width: 30, height: 30, borderRadius: 8, backgroundColor: "#151D27", borderWidth: 1, borderColor: "#29313D", justifyContent: "center", alignItems: "center" },
+  seatVIPBorder: { borderColor: "#FFD166" },
+  seatSelected: { backgroundColor: "#E50914", borderColor: "#E50914" },
+  seatBooked: { backgroundColor: "#111821", borderColor: "rgba(255,255,255,0.02)", opacity: 0.15 },
+  seatNumberText: { color: "#9CA3AF", fontSize: 10, fontWeight: "700" },
+  textWhite: { color: "#FFFFFF" },
+  textBooked: { color: "#374151" },
+  bottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "#111821", padding: 18, flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderTopWidth: 1, borderTopColor: "#29313D" },
+  priceLabel: { color: "#9CA3AF", fontSize: 11, fontWeight: "600" },
+  priceValue: { color: "#FFFFFF", fontSize: 22, fontWeight: "900", marginTop: 4 },
+  continueBtn: { minHeight: 48, paddingHorizontal: 28, borderRadius: 12, backgroundColor: "#E50914", justifyContent: "center", alignItems: "center" },
+  disabledBtn: { backgroundColor: "#151D27", opacity: 0.4 },
+  continueBtnText: { color: "#FFFFFF", fontSize: 14, fontWeight: "800" },
 });

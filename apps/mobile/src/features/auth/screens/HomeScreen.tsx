@@ -574,7 +574,7 @@ export default function HomeScreen() {
 
         <Pressable
           style={styles.navItem}
-          onPress={() => router.replace("/login")}
+          onPress={() => router.replace("/profile")}
         >
           <Ionicons
             name="person-outline"
@@ -583,7 +583,7 @@ export default function HomeScreen() {
           />
 
           <Text style={styles.navText}>
-            Account
+            Profile
           </Text>
         </Pressable>
       </View>
