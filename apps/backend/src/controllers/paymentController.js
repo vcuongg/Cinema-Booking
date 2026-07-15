@@ -74,6 +74,12 @@ const handlePayosWebhook = async (req, res) => {
   }
 };
 
+const handlePayosWebhookCheck = (req, res) =>
+  res.status(200).json({
+    success: true,
+    message: "PayOS webhook endpoint is ready",
+  });
+
 const handlePayosReturn = (req, res) =>
   res.status(200).json({
     success: true,
@@ -138,5 +144,6 @@ module.exports = {
   confirmPayosWebhook,
   handlePayosCancel,
   handlePayosReturn,
+  handlePayosWebhookCheck,
   handlePayosWebhook,
 };
