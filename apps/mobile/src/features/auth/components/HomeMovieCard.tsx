@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useWindowDimensions } from "react-native";
 import {
   Image,
   Pressable,
@@ -26,6 +27,8 @@ export default function HomeMovieCard({
   isFavourite = false,
   onFavouriteToggle,
 }: HomeMovieCardProps) {
+  const { width } = useWindowDimensions();
+  const isCompactScreen = width < 420;
   const posterUri = getPosterUri(movie);
 
   const openMovieDetail = () => {
@@ -42,10 +45,16 @@ export default function HomeMovieCard({
       onPress={openMovieDetail}
       style={({ pressed }) => [
         styles.card,
+        isCompactScreen && styles.cardCompact,
         pressed && styles.cardPressed,
       ]}
     >
-      <View style={styles.posterContainer}>
+      <View
+        style={[
+          styles.posterContainer,
+          isCompactScreen && styles.posterContainerCompact,
+        ]}
+      >
         {posterUri ? (
           <Image
             source={{
@@ -120,7 +129,7 @@ export default function HomeMovieCard({
 
         <Text
           style={styles.title}
-          numberOfLines={2}
+          numberOfLines={isCompactScreen ? 1 : 2}
         >
           {movie.title}
         </Text>
@@ -207,6 +216,10 @@ const styles = StyleSheet.create({
     minHeight: 170,
   },
 
+  cardCompact: {
+    minHeight: 152,
+  },
+
   cardPressed: {
     opacity: 0.88,
     transform: [{ scale: 0.995 }],
@@ -214,6 +227,7 @@ const styles = StyleSheet.create({
 
   posterContainer: {
     width: 126,
+    height: 150,
     margin: 10,
     borderRadius: 14,
     overflow: "hidden",
@@ -221,6 +235,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#29313D",
     position: "relative",
+  },
+
+  posterContainerCompact: {
+    width: 108,
+    height: 130,
+    margin: 9,
   },
 
   poster: {

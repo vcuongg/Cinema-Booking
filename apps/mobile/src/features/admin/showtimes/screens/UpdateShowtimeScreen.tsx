@@ -27,11 +27,7 @@ import {
 
 import { LinearGradient } from "expo-linear-gradient";
 
-let DateTimePicker: any = null;
-
-if (Platform.OS !== "web") {
-  DateTimePicker = require("@react-native-community/datetimepicker").default;
-}
+import DateTimePicker from "@/shared/components/DateTimePicker";
 import { useRouter, useLocalSearchParams } from "expo-router";
 
 import {
