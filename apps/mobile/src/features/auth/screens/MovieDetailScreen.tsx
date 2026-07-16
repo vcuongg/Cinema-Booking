@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Href, router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import {
     useCallback,
     useEffect,
@@ -96,9 +96,9 @@ export default function MovieDetailScreen() {
         }
 
         router.push({
-            pathname: "/showtimes/[movieId]",
+            pathname: "/showtimes",
             params: { movieId },
-        } as Href);
+        });
     };
 
     if (loading) {
@@ -416,10 +416,7 @@ export default function MovieDetailScreen() {
 
                         <Pressable
                             style={styles.bookButton}
-                            onPress={() => router.push({
-                                pathname: "/showtimes",
-                                params: { movieId: movie?._id } // Đổi từ id -> movieId
-                            })}
+                            onPress={openShowtimes}
                         >
                             <Ionicons name="ticket-outline" size={20} color="#FFFFFF" />
                             <Text style={styles.bookButtonText}>Book Ticket</Text>

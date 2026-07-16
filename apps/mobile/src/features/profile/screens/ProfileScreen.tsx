@@ -200,7 +200,7 @@ export default function ProfileScreen() {
             <MenuItem
               icon="receipt-outline"
               label="My Orders"
-              onPress={() => router.push("/tickets")}
+              onPress={() => router.push("/my-ticket")}
             />
             <View style={styles.menuDivider} />
             <MenuItem
@@ -278,7 +278,7 @@ export default function ProfileScreen() {
           <Text style={styles.navText}>Home</Text>
         </Pressable>
 
-        <Pressable style={styles.navItem} onPress={() => router.replace("/tickets")}>
+        <Pressable style={styles.navItem} onPress={() => router.replace("/my-ticket")}>
           <Ionicons name="ticket-outline" size={22} color="#6B7280" />
           <Text style={styles.navText}>Bookings</Text>
         </Pressable>

@@ -13,15 +13,15 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { showtimeService } from "@/shared/services/ShowtimeService";
-import type { ShowtimeSummary, SelectedSeat } from "@/shared/types/booking";
+import { showtimeService, type SeatStatus } from "@/shared/services/ShowtimeService";
+import type { ShowtimeSummary } from "@/shared/types/booking";
 
 export default function SeatSelectionScreen() {
   const { showtimeId } = useLocalSearchParams<{ showtimeId: string }>();
 
   const [showtime, setShowtime] = useState<ShowtimeSummary | null>(null);
-  const [seats, setSeats] = useState<SelectedSeat[]>([]);
-  const [selectedSeats, setSelectedSeats] = useState<SelectedSeat[]>([]);
+  const [seats, setSeats] = useState<SeatStatus[]>([]);
+  const [selectedSeats, setSelectedSeats] = useState<SeatStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -47,7 +47,7 @@ export default function SeatSelectionScreen() {
 
   // Nhóm ghế theo từng hàng (Row) để vẽ Grid
   const groupedSeats = useMemo(() => {
-    const map: { [row: string]: SelectedSeat[] } = {};
+    const map: { [row: string]: SeatStatus[] } = {};
     seats.forEach((seat) => {
       if (!map[seat.seatRow]) {
         map[seat.seatRow] = [];
@@ -69,7 +69,7 @@ export default function SeatSelectionScreen() {
   }, [seats]);
 
   // Logic chọn / bỏ chọn ghế
-  const toggleSeat = (seat: SelectedSeat) => {
+  const toggleSeat = (seat: SeatStatus) => {
     // Không cho chọn ghế đã có người đặt trước
     // (Ở đây map với backend: backend trả về trường `isBooked` trong seat)
     const rawSeat = seat as any; 
@@ -92,12 +92,11 @@ export default function SeatSelectionScreen() {
   const handleContinue = () => {
     if (selectedSeats.length === 0) return;
 
-    // Chuyển sang màn hình Preview thanh toán (Sẽ dựng ở bước sau)
     router.push({
-      pathname: "/payment-preview",
+      pathname: "/payment",
       params: {
-        showtimeId: showtime?._id,
-        seatIds: selectedSeats.map((s) => s._id),
+        showtimeId: showtime?._id || showtimeId,
+        seatIds: selectedSeats.map((s) => s._id).join(","),
       },
     });
   };
