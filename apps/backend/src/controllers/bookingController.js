@@ -5,7 +5,10 @@ const Seat = require("../models/Seat");
 const Showtime = require("../models/Showtime");
 const Movie = require("../models/Movie");
 const User = require("../models/User");
-const { createPaymentLink } = require("../services/payosService");
+const {
+  createPaymentLink,
+  getPaymentRequest,
+} = require("../services/payosService");
 const generateTicketCode = require("../utils/ticketCode");
 const { isDbConnected } = require("../config/db");
 
@@ -139,6 +142,56 @@ const expirePendingBookings = async (filter = {}) =>
       },
     },
   );
+
+const syncPayosBookingStatus = async (booking) => {
+  if (
+    !booking ||
+    booking.paymentProvider !== "payos" ||
+    booking.paymentStatus === "paid" ||
+    !booking.payosOrderCode
+  ) {
+    return booking;
+  }
+
+  try {
+    const paymentData = await getPaymentRequest(booking.payosOrderCode);
+    const payosStatus = String(paymentData.status || "").toUpperCase();
+    const latestTransaction = Array.isArray(paymentData.transactions)
+      ? paymentData.transactions[0]
+      : null;
+
+    booking.payosStatus = paymentData.status || booking.payosStatus;
+    booking.payosPaymentLinkId =
+      paymentData.paymentLinkId || booking.payosPaymentLinkId;
+
+    if (latestTransaction && latestTransaction.reference) {
+      booking.paymentReference = latestTransaction.reference;
+    }
+
+    if (payosStatus === "PAID") {
+      booking.paymentStatus = "paid";
+      booking.bookingStatus = "confirmed";
+      booking.ticketCode = booking.ticketCode || generateTicketCode();
+      booking.paidAt =
+        booking.paidAt ||
+        (latestTransaction && latestTransaction.transactionDateTime
+          ? new Date(latestTransaction.transactionDateTime)
+          : new Date());
+    } else if (
+      booking.paymentStatus === "pending" &&
+      ["CANCELLED", "EXPIRED"].includes(payosStatus)
+    ) {
+      booking.paymentStatus = "failed";
+      booking.bookingStatus = "cancelled";
+    }
+
+    await booking.save();
+  } catch (error) {
+    console.warn("Could not sync PayOS booking status:", error.message);
+  }
+
+  return booking;
+};
 
 const validateBookingInput = ({ showtimeId, seatIds, paymentMethod }) => {
   if (!mongoose.Types.ObjectId.isValid(showtimeId)) {
@@ -540,6 +593,8 @@ const getMyBookings = async (req, res) => {
       Booking.find({ userId }).sort({ createdAt: -1 }),
     );
 
+    await Promise.all(bookings.map(syncPayosBookingStatus));
+
     return res.status(200).json({
       success: true,
       bookings,
@@ -583,6 +638,8 @@ const getBookingById = async (req, res) => {
         message: "Booking not found",
       });
     }
+
+    await syncPayosBookingStatus(booking);
 
     return res.status(200).json({
       success: true,

@@ -106,6 +106,29 @@ const confirmWebhookUrl = async (webhookUrl) => {
   return data.data;
 };
 
+const getPaymentRequest = async (orderCode) => {
+  const { clientId, apiKey } = getPayosConfig();
+  const response = await fetch(
+    `${PAYOS_API_BASE_URL}/v2/payment-requests/${orderCode}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "x-client-id": clientId,
+        "x-api-key": apiKey,
+      },
+    },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok || data.code !== "00") {
+    throw new Error(data.desc || data.message || "Could not get PayOS payment request");
+  }
+
+  return data.data;
+};
+
 const verifyWebhookSignature = ({ data, signature }) => {
   const { checksumKey } = getPayosConfig();
 
@@ -130,5 +153,6 @@ module.exports = {
   confirmWebhookUrl,
   createPaymentLink,
   createSignature,
+  getPaymentRequest,
   verifyWebhookSignature,
 };
