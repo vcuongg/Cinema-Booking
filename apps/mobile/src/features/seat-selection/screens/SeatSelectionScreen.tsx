@@ -1,10 +1,8 @@
-// app/seats.tsx hoặc màn hình SeatSelectionScreen tương ứng của bạn
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,6 +14,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { showtimeService, type SeatStatus } from "@/shared/services/ShowtimeService";
 import type { ShowtimeSummary } from "@/shared/types/booking";
 
+// --- Cấu hình phụ phí ---
+const VIP_SURCHARGE = 20000; // Phụ phí ghế VIP: 20,000đ
+
 export default function SeatSelectionScreen() {
   const { showtimeId } = useLocalSearchParams<{ showtimeId: string }>();
 
@@ -25,7 +26,6 @@ export default function SeatSelectionScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Load ghế của suất chiếu
   const loadSeatsData = useCallback(async () => {
     if (!showtimeId) return;
     try {
@@ -45,7 +45,6 @@ export default function SeatSelectionScreen() {
     loadSeatsData();
   }, [loadSeatsData]);
 
-  // Nhóm ghế theo từng hàng (Row) để vẽ Grid
   const groupedSeats = useMemo(() => {
     const map: { [row: string]: SeatStatus[] } = {};
     seats.forEach((seat) => {
@@ -55,7 +54,6 @@ export default function SeatSelectionScreen() {
       map[seat.seatRow].push(seat);
     });
 
-    // Sắp xếp các ghế trong hàng theo số thứ tự tăng dần
     Object.keys(map).forEach((row) => {
       map[row].sort((a, b) => a.seatNumber - b.seatNumber);
     });
@@ -68,12 +66,8 @@ export default function SeatSelectionScreen() {
       }));
   }, [seats]);
 
-  // Logic chọn / bỏ chọn ghế
   const toggleSeat = (seat: SeatStatus) => {
-    // Không cho chọn ghế đã có người đặt trước
-    // (Ở đây map với backend: backend trả về trường `isBooked` trong seat)
-    const rawSeat = seat as any; 
-    if (rawSeat.isBooked) return;
+    if (seat.isBooked) return;
 
     const isAlreadySelected = selectedSeats.some((s) => s._id === seat._id);
     if (isAlreadySelected) {
@@ -83,10 +77,15 @@ export default function SeatSelectionScreen() {
     }
   };
 
-  // Tính tổng tiền dựa trên số ghế đã chọn
+  // LOGIC MỚI: Tính tổng tiền có cộng thêm phụ phí cho ghế VIP
   const totalPrice = useMemo(() => {
     if (!showtime) return 0;
-    return selectedSeats.length * showtime.price;
+    const basePrice = showtime.price;
+
+    return selectedSeats.reduce((total, seat) => {
+      const seatPrice = seat.seatType === "vip" ? basePrice + VIP_SURCHARGE : basePrice;
+      return total + seatPrice;
+    }, 0);
   }, [selectedSeats, showtime]);
 
   const handleContinue = () => {
@@ -112,7 +111,6 @@ export default function SeatSelectionScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Header */}
       <View style={styles.header}>
         <Pressable style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
@@ -126,19 +124,18 @@ export default function SeatSelectionScreen() {
         <Ionicons name="film-outline" size={24} color="#FFFFFF" />
       </View>
 
-      {/* Chỉ dẫn chú thích trạng thái ghế */}
       <View style={styles.legendContainer}>
         <View style={styles.legendItem}>
           <View style={styles.legendBox} />
-          <Text style={styles.legendText}>Available</Text>
+          <Text style={styles.legendText}>Trống</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendBox, styles.legendSelected]} />
-          <Text style={styles.legendText}>Selected</Text>
+          <Text style={styles.legendText}>Đang chọn</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendBox, styles.legendBooked]} />
-          <Text style={styles.legendText}>Booked</Text>
+          <Text style={styles.legendText}>Đã đặt</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendBox, styles.legendVIP]} />
@@ -146,25 +143,20 @@ export default function SeatSelectionScreen() {
         </View>
       </View>
 
-      {/* Sơ đồ màn hình Screen */}
       <View style={styles.screenIndicator}>
         <View style={styles.screenLine} />
-        <Text style={styles.screenText}>SCREEN</Text>
+        <Text style={styles.screenText}>MÀN HÌNH</Text>
       </View>
 
-      {/* Vẽ Grid Sơ đồ ghế */}
       <ScrollView contentContainerStyle={styles.seatScroll} showsVerticalScrollIndicator={false}>
         <View style={styles.gridContainer}>
           {groupedSeats.map(({ row, data }) => (
             <View key={row} style={styles.rowWrapper}>
-              {/* Tên hàng ghế bên trái */}
               <Text style={styles.rowLabel}>{row}</Text>
 
-              {/* Các ghế trong hàng */}
               <View style={styles.seatRow}>
                 {data.map((seat) => {
-                  const rawSeat = seat as any;
-                  const isBooked = rawSeat.isBooked;
+                  const isBooked = seat.isBooked;
                   const isSelected = selectedSeats.some((s) => s._id === seat._id);
                   const isVIP = seat.seatType === "vip";
 
@@ -173,40 +165,43 @@ export default function SeatSelectionScreen() {
                       key={seat._id}
                       style={[
                         styles.seat,
-                        isVIP && styles.seatVIPBorder,
+                        isVIP && !isBooked && styles.seatVIPBorder, // Không tô viền VIP nếu đã bị đặt
                         isSelected && styles.seatSelected,
                         isBooked && styles.seatBooked,
                       ]}
                       disabled={isBooked}
                       onPress={() => toggleSeat(seat)}
                     >
-                      <Text
-                        style={[
-                          styles.seatNumberText,
-                          isSelected && styles.textWhite,
-                          isBooked && styles.textBooked,
-                        ]}
-                      >
-                        {seat.seatNumber}
-                      </Text>
+                      {/* UI MỚI: Hiển thị dấu X cho ghế đã đặt */}
+                      {isBooked ? (
+                        <Ionicons name="close" size={16} color="#4B5563" />
+                      ) : (
+                        <Text
+                          style={[
+                            styles.seatNumberText,
+                            isSelected && styles.textWhite,
+                          ]}
+                        >
+                          {seat.seatNumber}
+                        </Text>
+                      )}
                     </Pressable>
                   );
                 })}
               </View>
 
-              {/* Tên hàng ghế bên phải */}
               <Text style={styles.rowLabel}>{row}</Text>
             </View>
           ))}
         </View>
       </ScrollView>
 
-      {/* Thanh toán ở cuối màn hình */}
       <View style={styles.bottomBar}>
         <View>
-          <Text style={styles.priceLabel}>TOTAL PRICE</Text>
+          <Text style={styles.priceLabel}>TỔNG TIỀN</Text>
           <Text style={styles.priceValue}>
-            {totalPrice.toLocaleString("vi-VN")}đ
+            {/* Format sang dạng chuẩn VNĐ */}
+            {totalPrice.toLocaleString("vi-VN")} VNĐ
           </Text>
         </View>
         <Pressable
@@ -214,7 +209,7 @@ export default function SeatSelectionScreen() {
           disabled={selectedSeats.length === 0}
           onPress={handleContinue}
         >
-          <Text style={styles.continueBtnText}>Continue →</Text>
+          <Text style={styles.continueBtnText}>Thanh toán →</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -233,7 +228,7 @@ const styles = StyleSheet.create({
   legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
   legendBox: { width: 14, height: 14, borderRadius: 4, backgroundColor: "#151D27", borderWidth: 1, borderColor: "#29313D" },
   legendSelected: { backgroundColor: "#E50914", borderColor: "#E50914" },
-  legendBooked: { backgroundColor: "#111821", borderColor: "rgba(255,255,255,0.05)", opacity: 0.3 },
+  legendBooked: { backgroundColor: "#29313D", borderColor: "#29313D" }, // Style mới cho Legend Booked
   legendVIP: { borderColor: "#FFD166" },
   legendText: { color: "#9CA3AF", fontSize: 11, fontWeight: "500" },
   screenIndicator: { alignItems: "center", marginTop: 22, marginBottom: 14 },
@@ -247,7 +242,7 @@ const styles = StyleSheet.create({
   seat: { width: 30, height: 30, borderRadius: 8, backgroundColor: "#151D27", borderWidth: 1, borderColor: "#29313D", justifyContent: "center", alignItems: "center" },
   seatVIPBorder: { borderColor: "#FFD166" },
   seatSelected: { backgroundColor: "#E50914", borderColor: "#E50914" },
-  seatBooked: { backgroundColor: "#111821", borderColor: "rgba(255,255,255,0.02)", opacity: 0.15 },
+  seatBooked: { backgroundColor: "#29313D", borderColor: "#29313D", opacity: 0.6 }, // Chỉnh sửa: Đổi màu nền rõ rệt để nhận biết ghế đã đặt
   seatNumberText: { color: "#9CA3AF", fontSize: 10, fontWeight: "700" },
   textWhite: { color: "#FFFFFF" },
   textBooked: { color: "#374151" },
