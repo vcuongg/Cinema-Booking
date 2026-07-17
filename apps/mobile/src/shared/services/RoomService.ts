@@ -43,7 +43,10 @@ export async function createRoom(payload: RoomPayload): Promise<Room> {
   return data.room;
 }
 
-export async function updateRoom(id: string, payload: RoomPayload): Promise<Room> {
+export async function updateRoom(
+  id: string,
+  payload: RoomPayload,
+): Promise<Room> {
   const data = await apiRequest<RoomMutationResponse>(`/rooms/${id}`, {
     method: "PATCH",
     auth: true,
@@ -57,5 +60,22 @@ export async function deleteRoom(id: string): Promise<void> {
   await apiRequest(`/rooms/${id}`, {
     method: "DELETE",
     auth: true,
+  });
+}
+
+export async function getRoomsByCinema(cinemaId: string): Promise<Room[]> {
+  return apiRequest<Room[]>(`/rooms/cinema/${cinemaId}`, {
+    method: "GET",
+    auth: true,
+  });
+}
+
+export async function getRoomById(id: string): Promise<Room> {
+  return apiRequest<Room>(`/rooms/${id}`);
+}
+
+export async function deleteRoomsByCinema(cinemaId: string): Promise<void> {
+  await apiRequest(`/rooms/cinema/${cinemaId}`, {
+    method: "DELETE",
   });
 }
