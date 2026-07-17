@@ -2,6 +2,22 @@ const crypto = require("crypto");
 
 const PAYOS_API_BASE_URL = "https://api-merchant.payos.vn";
 
+const parsePayosResponse = async (response) => {
+  const responseText = await response.text();
+
+  if (!responseText) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(responseText);
+  } catch (error) {
+    throw new Error(
+      `PayOS returned non-JSON response. Status ${response.status}: ${responseText}`,
+    );
+  }
+};
+
 const sortObject = (data) =>
   Object.keys(data)
     .sort()
@@ -76,7 +92,7 @@ const createPaymentLink = async ({
     body: JSON.stringify(payload),
   });
 
-  const data = await response.json();
+  const data = await parsePayosResponse(response);
 
   if (!response.ok || data.code !== "00") {
     throw new Error(data.desc || data.message || "Could not create PayOS payment link");
@@ -97,7 +113,7 @@ const confirmWebhookUrl = async (webhookUrl) => {
     body: JSON.stringify({ webhookUrl }),
   });
 
-  const data = await response.json();
+  const data = await parsePayosResponse(response);
 
   if (!response.ok || data.code !== "00") {
     throw new Error(data.desc || data.message || "Could not confirm PayOS webhook URL");
@@ -120,7 +136,7 @@ const getPaymentRequest = async (orderCode) => {
     },
   );
 
-  const data = await response.json();
+  const data = await parsePayosResponse(response);
 
   if (!response.ok || data.code !== "00") {
     throw new Error(data.desc || data.message || "Could not get PayOS payment request");

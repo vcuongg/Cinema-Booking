@@ -147,7 +147,7 @@ const syncPayosBookingStatus = async (booking) => {
   if (
     !booking ||
     booking.paymentProvider !== "payos" ||
-    booking.paymentStatus === "paid" ||
+    booking.paymentStatus !== "pending" ||
     !booking.payosOrderCode
   ) {
     return booking;
