@@ -17,3 +17,25 @@ export interface Room {
 
     updatedAt: string;
 }
+
+export interface CreateRoomRequest {
+  cinemaId: string;
+
+  roomName: string;
+
+  totalSeats?: number;
+
+  rows: number;
+
+  seatsPerRow: number;
+}
+
+export interface UpdateRoomRequest {
+  roomName?: string;
+
+  totalSeats?: number;
+
+  rows?: number;
+
+  seatsPerRow?: number;
+}

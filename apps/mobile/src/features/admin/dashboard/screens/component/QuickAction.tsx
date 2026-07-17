@@ -28,7 +28,7 @@ const actions: Action[] = [
   {
     title: "Manage Cinemas",
     icon: "business",
-    link: "/admin/cinemas" as Href,
+    link: "/admin/CinemaManagement" as Href,
   },
   {
     title: "Manage Showtimes",

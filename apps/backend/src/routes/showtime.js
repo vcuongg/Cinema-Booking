@@ -10,6 +10,7 @@ const {
   deleteShowtime,
   getShowtimesByMovie,
   getSeatsByShowtime,
+  searchShowtimes,
 } = require("../controllers/showtimeController");
 
 const router = express.Router();
@@ -27,6 +28,9 @@ router.get("/form-data", getShowtimeFormData);
 
 // GET /api/showtimes/movie?movieId=...
 router.get("/movie", getShowtimesByMovie);
+
+// GET /search
+router.get("/search", searchShowtimes);
 
 // GET /api/showtimes/:showtimeId/seats
 router.get("/:showtimeId/seats", getSeatsByShowtime);

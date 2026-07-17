@@ -5,6 +5,8 @@ const Room = require("../models/Room");
 const Seat = require("../models/Seat");
 const Showtime = require("../models/Showtime");
 
+// ================= HELPERS =================
+
 function getRowLabel(index) {
   let value = index + 1;
   let label = "";
@@ -55,7 +57,13 @@ async function ensureCinemaExists(cinemaId) {
   return Cinema.findById(cinemaId);
 }
 
-// GET /api/rooms
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// ================= GET ALL ROOMS =================
+
+
 const getRooms = async (req, res) => {
   try {
     const query = {};
@@ -82,7 +90,34 @@ const getRooms = async (req, res) => {
   }
 };
 
-// GET /api/rooms/form-data
+// ================= GET ROOMS BY CINEMA =================
+
+const getRoomsByCinema = async (req, res) => {
+  const { cinemaId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(cinemaId)) {
+    return res.status(404).json({
+      error: "No such cinema",
+    });
+  }
+
+  try {
+    const rooms = await Room.find({
+      cinemaId,
+    }).sort({
+      roomName: 1,
+    });
+
+    return res.status(200).json(rooms);
+  } catch (error) {
+    return res.status(400).json({
+      error: error.message,
+    });
+  }
+};
+
+// ================= GET ROOM FORM DATA =================
+
 const getRoomFormData = async (req, res) => {
   try {
     const cinemas = await Cinema.find({ isActive: true }).sort({
@@ -99,7 +134,8 @@ const getRoomFormData = async (req, res) => {
   }
 };
 
-// GET /api/rooms/:id
+// ================= GET ROOM BY ID =================
+
 const getRoomById = async (req, res) => {
   const { id } = req.params;
 
@@ -126,7 +162,9 @@ const getRoomById = async (req, res) => {
   }
 };
 
-// POST /api/rooms
+// ================= CREATE ROOM =================
+
+
 const createRoom = async (req, res) => {
   const { cinemaId, roomName, rows, seatsPerRow } = req.body;
 
@@ -159,7 +197,7 @@ const createRoom = async (req, res) => {
     const duplicateRoom = await Room.findOne({
       cinemaId,
       roomName: {
-        $regex: `^${normalizedRoomName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+        $regex: `^${escapeRegex(normalizedRoomName)}$`,
         $options: "i",
       },
     });
@@ -186,6 +224,11 @@ const createRoom = async (req, res) => {
       await Seat.insertMany(seats);
     }
 
+    // Keep the parent cinema's inventory numbers in sync
+    cinema.totalHalls += 1;
+    cinema.totalCapacity += totalSeats;
+    await cinema.save();
+
     const populatedRoom = await Room.findById(room._id).populate("cinemaId");
 
     return res.status(201).json({
@@ -199,7 +242,8 @@ const createRoom = async (req, res) => {
   }
 };
 
-// PATCH /api/rooms/:id
+// ================= UPDATE ROOM =================
+
 const updateRoom = async (req, res) => {
   const { id } = req.params;
 
@@ -218,7 +262,10 @@ const updateRoom = async (req, res) => {
       });
     }
 
-    const nextCinemaId = req.body.cinemaId || room.cinemaId.toString();
+    const previousCinemaId = room.cinemaId.toString();
+    const previousTotalSeats = room.totalSeats;
+
+    const nextCinemaId = req.body.cinemaId || previousCinemaId;
     const nextRoomName = req.body.roomName
       ? String(req.body.roomName).trim()
       : room.roomName;
@@ -242,9 +289,11 @@ const updateRoom = async (req, res) => {
       });
     }
 
-    const cinema = await ensureCinemaExists(nextCinemaId);
+    const cinemaChanged = nextCinemaId !== previousCinemaId;
 
-    if (!cinema) {
+    const nextCinema = await ensureCinemaExists(nextCinemaId);
+
+    if (!nextCinema) {
       return res.status(404).json({
         error: "Cinema not found",
       });
@@ -254,7 +303,7 @@ const updateRoom = async (req, res) => {
       _id: { $ne: id },
       cinemaId: nextCinemaId,
       roomName: {
-        $regex: `^${nextRoomName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+        $regex: `^${escapeRegex(nextRoomName)}$`,
         $options: "i",
       },
     });
@@ -268,22 +317,24 @@ const updateRoom = async (req, res) => {
     const layoutChanged =
       nextRows !== room.rows || nextSeatsPerRow !== room.seatsPerRow;
 
-    if (layoutChanged) {
+    if (layoutChanged || cinemaChanged) {
       const hasShowtime = await Showtime.exists({ roomId: id });
 
       if (hasShowtime) {
         return res.status(409).json({
           error:
-            "Cannot change room layout because this room already has showtimes",
+            "Cannot change this room's layout or cinema because it already has showtimes",
         });
       }
     }
+
+    const nextTotalSeats = nextRows * nextSeatsPerRow;
 
     room.cinemaId = nextCinemaId;
     room.roomName = nextRoomName;
     room.rows = nextRows;
     room.seatsPerRow = nextSeatsPerRow;
-    room.totalSeats = nextRows * nextSeatsPerRow;
+    room.totalSeats = nextTotalSeats;
 
     await room.save();
 
@@ -295,6 +346,21 @@ const updateRoom = async (req, res) => {
       if (seats.length > 0) {
         await Seat.insertMany(seats);
       }
+    }
+
+    // Sync cinema inventory numbers
+    if (cinemaChanged) {
+      await Cinema.findByIdAndUpdate(previousCinemaId, {
+        $inc: { totalHalls: -1, totalCapacity: -previousTotalSeats },
+      });
+
+      await Cinema.findByIdAndUpdate(nextCinemaId, {
+        $inc: { totalHalls: 1, totalCapacity: nextTotalSeats },
+      });
+    } else if (nextTotalSeats !== previousTotalSeats) {
+      await Cinema.findByIdAndUpdate(nextCinemaId, {
+        $inc: { totalCapacity: nextTotalSeats - previousTotalSeats },
+      });
     }
 
     const populatedRoom = await Room.findById(id).populate("cinemaId");
@@ -310,7 +376,8 @@ const updateRoom = async (req, res) => {
   }
 };
 
-// DELETE /api/rooms/:id
+// ================= DELETE ROOM =================
+
 const deleteRoom = async (req, res) => {
   const { id } = req.params;
 
@@ -340,8 +407,46 @@ const deleteRoom = async (req, res) => {
     await Seat.deleteMany({ roomId: id });
     await Room.findByIdAndDelete(id);
 
+    await Cinema.findByIdAndUpdate(room.cinemaId, {
+      $inc: { totalHalls: -1, totalCapacity: -room.totalSeats },
+    });
+
     return res.status(200).json({
       message: "Room deleted",
+      room,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      error: error.message,
+    });
+  }
+};
+
+// ================= DELETE ROOMS BY CINEMA =================
+
+
+const deleteRoomsByCinema = async (req, res) => {
+  const { cinemaId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(cinemaId)) {
+    return res.status(404).json({
+      error: "No such cinema",
+    });
+  }
+
+  try {
+    const rooms = await Room.find({ cinemaId }, "_id");
+    const roomIds = rooms.map((room) => room._id);
+
+    if (roomIds.length > 0) {
+      await Seat.deleteMany({ roomId: { $in: roomIds } });
+    }
+
+    const result = await Room.deleteMany({ cinemaId });
+
+    return res.status(200).json({
+      message: "Rooms deleted",
+      deletedCount: result.deletedCount,
     });
   } catch (error) {
     return res.status(400).json({
@@ -352,9 +457,11 @@ const deleteRoom = async (req, res) => {
 
 module.exports = {
   getRooms,
+  getRoomsByCinema,
   getRoomFormData,
   getRoomById,
   createRoom,
   updateRoom,
   deleteRoom,
+  deleteRoomsByCinema,
 };
