@@ -173,20 +173,6 @@ export default function HomeMovieCard({
         </View>
 
         <View style={styles.footer}>
-          <View>
-            <Text style={styles.priceLabel}>
-              From
-            </Text>
-
-            <Text style={styles.price}>
-              {movie.priceFrom
-                ? `${movie.priceFrom.toLocaleString(
-                    "vi-VN",
-                  )}đ`
-                : "Contact"}
-            </Text>
-          </View>
-
           <View style={styles.detailButton}>
             <Text style={styles.detailButtonText}>
               Book Now
@@ -366,20 +352,8 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: "row",
     alignItems: "flex-end",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     marginTop: 14,
-  },
-
-  priceLabel: {
-    color: "#6B7280",
-    fontSize: 11,
-  },
-
-  price: {
-    color: "#FFFFFF",
-    fontSize: 17,
-    fontWeight: "800",
-    marginTop: 3,
   },
 
   detailButton: {
