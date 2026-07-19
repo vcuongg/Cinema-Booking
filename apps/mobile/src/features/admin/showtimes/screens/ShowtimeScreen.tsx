@@ -197,7 +197,6 @@ export default function ManageShowtimeScreen() {
 
         {!loading &&
           movies.map((movieItem) => {
-            // ===== Group showtime theo cinema =====
 
             const cinemaGroups: { [key: string]: any } = {};
 
@@ -320,7 +319,7 @@ export default function ManageShowtimeScreen() {
                               },
                             ]}
                           >
-                            ${show.price}
+                            {show.price} VND
                           </Text>
                         </View>
 

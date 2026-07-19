@@ -83,13 +83,13 @@ export default function CreateCinemaScreen() {
     setNextHallName("");
   };
 
-  const handleEditHall = (hall) => {
-    console.log("Edit hall", hall.id);
-  };
+  // const handleEditHall = (hall) => {
+  //   console.log("Edit hall", hall.id);
+  // };
 
-  const handleDeleteHall = (hall) => {
-    setHalls((prev) => prev.filter((h) => h.id !== hall.id));
-  };
+  // const handleDeleteHall = (hall) => {
+  //   setHalls((prev) => prev.filter((h) => h.id !== hall.id));
+  // };
 
   const handleCancel = () => {
     router.back();
@@ -345,11 +345,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#1A1015",
   },
   coverOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(10,5,8,0.45)",
   },
   coverContent: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: "center",
     justifyContent: "center",
   },
