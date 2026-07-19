@@ -20,6 +20,14 @@ const calculateEndTime = (startTime, duration) => {
   )}`;
 };
 
+const removeVietnameseTones = (str) => {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase();
+};
 // ================= GET ALL =================
 
 const getShowtimes = async (req, res) => {
@@ -583,20 +591,34 @@ const searchShowtimes = async (req, res) => {
   const { keyword } = req.query;
 
   try {
-    let movieQuery = {
+    // let movieQuery = {
+    //   status: "now_showing",
+    // };
+
+    // if (keyword && keyword.trim() !== "") {
+    //   movieQuery.title = {
+    //     $regex: keyword.trim(),
+    //     $options: "i",
+    //   };
+    // }
+
+    // const movies = await Movie.find(movieQuery).sort({
+    //   title: 1,
+    // });
+
+    let movies = await Movie.find({
       status: "now_showing",
-    };
-
-    if (keyword && keyword.trim() !== "") {
-      movieQuery.title = {
-        $regex: keyword.trim(),
-        $options: "i",
-      };
-    }
-
-    const movies = await Movie.find(movieQuery).sort({
+    }).sort({
       title: 1,
     });
+
+    if (keyword && keyword.trim() !== "") {
+      const keywordNormalized = removeVietnameseTones(keyword);
+
+      movies = movies.filter((movie) =>
+        removeVietnameseTones(movie.title).includes(keywordNormalized),
+      );
+    }
 
     const movieIds = movies.map((movie) => movie._id);
 

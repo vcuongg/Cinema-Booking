@@ -461,15 +461,10 @@ export default function UpdateShowtimeScreen() {
             </View>
 
             <View style={[styles.fieldWrapper, styles.flex1]}>
-              <Text style={styles.label}>Ticket Price ($)</Text>
+              <Text style={styles.label}>Ticket Price</Text>
 
               <View style={styles.inputBox}>
-                <FontAwesome5
-                  name="dollar-sign"
-                  size={13}
-                  color={COLORS.red}
-                  style={styles.inputIcon}
-                />
+                <Text style={styles.currencyText}>VND</Text>
 
                 <TextInput
                   style={styles.input}
@@ -1009,5 +1004,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: "center",
     paddingVertical: 24,
+  },
+  currencyText: {
+    color: COLORS.red,
+    fontWeight: "bold",
+    fontSize: 14,
+    marginHorizontal: 8,
   },
 });
