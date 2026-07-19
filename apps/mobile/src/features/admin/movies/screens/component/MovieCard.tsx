@@ -1,7 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { router } from "expo-router";
 import {
-  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -15,7 +15,7 @@ interface MovieCardProps {
 }
 
 export default function MovieCard({ movie }: MovieCardProps) {
-  const posterUri = movie.poster || movie.posterUrl || "";
+  const posterUri = (movie.poster || movie.posterUrl || "").trim();
 
   return (
     <View style={styles.card}>
@@ -25,7 +25,8 @@ export default function MovieCard({ movie }: MovieCardProps) {
             uri: posterUri,
           }}
           style={styles.poster}
-          resizeMode="cover"
+          contentFit="cover"
+          cachePolicy="memory-disk"
         />
       ) : (
         <View style={styles.posterPlaceholder}>

@@ -21,10 +21,17 @@ const getMovies = async (req, res) => {
       createdAt: -1,
     });
 
+    const normalizedMovies = movies.map((movie) => {
+      const data = movie.toObject();
+      const poster = data.poster?.trim() || data.posterUrl?.trim() || "";
+      const trailer = data.trailer?.trim() || data.trailerUrl?.trim() || "";
+      return { ...data, poster, posterUrl: poster, trailer, trailerUrl: trailer };
+    });
+
     return res.status(200).json({
       success: true,
-      count: movies.length,
-      movies,
+      count: normalizedMovies.length,
+      movies: normalizedMovies,
     });
   } catch (error) {
     console.error("Get movies error:", error);
@@ -52,7 +59,7 @@ const getNowShowingMovies = async (req, res) => {
     return res.status(200).json({
       success: true,
       count: movies.length,
-      movies,
+      movies: movies.map(normalizeMovie),
     });
   } catch (error) {
     console.error("Get now showing error:", error);
@@ -80,7 +87,7 @@ const getComingSoonMovies = async (req, res) => {
     return res.status(200).json({
       success: true,
       count: movies.length,
-      movies,
+      movies: movies.map(normalizeMovie),
     });
   } catch (error) {
     console.error("Get coming soon error:", error);
@@ -164,7 +171,7 @@ const searchMovies = async (req, res) => {
     return res.status(200).json({
       success: true,
       count: movies.length,
-      movies,
+      movies: movies.map(normalizeMovie),
     });
   } catch (error) {
     console.error("Search movies error:", error);
@@ -206,7 +213,7 @@ const getMovie = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      movie,
+      movie: normalizeMovie(movie),
     });
   } catch (error) {
     console.error("Get movie detail error:", error);
@@ -404,4 +411,11 @@ module.exports = {
   createMovie,
   updateMovie,
   deleteMovie,
+};
+
+const normalizeMovie = (movie) => {
+  const data = movie.toObject ? movie.toObject() : movie;
+  const poster = String(data.poster || data.posterUrl || "").trim();
+  const trailer = String(data.trailer || data.trailerUrl || "").trim();
+  return { ...data, poster, posterUrl: poster, trailer, trailerUrl: trailer };
 };
