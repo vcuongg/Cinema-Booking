@@ -27,7 +27,7 @@ export default function TopMovies({ movies }: TopMoviesProps) {
             title={movie.title}
             sold={movie.ticketsSold}
             revenue={movie.revenue}
-            image={movie.poster}
+            image={movie.poster || movie.posterUrl}
           />
         ))
       )}

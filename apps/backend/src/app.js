@@ -9,6 +9,7 @@ const roomRoutes = require("./routes/room");
 const cinemaRoutes = require("./routes/cinema");
 const bookingRoutes = require("./routes/booking");
 const paymentRoutes = require("./routes/payment");
+const userRoutes = require("./routes/users");
 
 const sendEmail = require("./utils/sendEmail");
 const { isDbConnected } = require("./config/db");
@@ -45,6 +46,7 @@ app.use("/api/rooms", roomRoutes);
 app.use("/api/cinemas", cinemaRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/users", userRoutes);
 
 app.get("/", (req, res) => {
   return res.status(200).json({
