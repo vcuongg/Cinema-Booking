@@ -10,13 +10,13 @@ import {
   Pressable,
   TextInput,
   Modal,
-  Switch, // Thêm Switch cho màn Settings
+  Switch,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import ImagePicker from "@/shared/components/ImagePicker"; // Đảm bảo bạn đã config file này đúng chuẩn
+import ImagePicker from "@/shared/components/ImagePicker"; 
 
 // ==================== TYPES ====================
 interface MenuItemProps {
@@ -26,12 +26,15 @@ interface MenuItemProps {
   danger?: boolean;
 }
 
+// CẬP NHẬT: Thêm fallback name, username, email để đồng bộ với HomeScreen
 interface UserProfile {
+  fullName?: string;
   name?: string;
   username?: string;
   email?: string;
+  phone?: string;
   role?: string;
-  avatar?: string | null;
+  profileImage?: string | null;
   orders?: number;
 }
 
@@ -70,9 +73,8 @@ export default function ProfileScreen() {
   const [isEditVisible, setIsEditVisible] = useState(false);
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
 
-  // States cho form Edit Profile
-  const [editName, setEditName] = useState("");
-  const [editUsername, setEditUsername] = useState("");
+  const [editFullName, setEditFullName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
   
   // States cho Settings
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -86,7 +88,7 @@ export default function ProfileScreen() {
           setUser({
             ...parsedUser,
             orders: 0,
-            avatar: parsedUser.avatar || null,
+            profileImage: parsedUser.profileImage || null,
           });
         } else {
           router.replace("/login");
@@ -120,12 +122,12 @@ export default function ProfileScreen() {
       if (!result.canceled) {
         const newAvatarUri = result.assets[0].uri;
 
-        setUser((prev) => (prev ? { ...prev, avatar: newAvatarUri } : null));
+        setUser((prev) => (prev ? { ...prev, profileImage: newAvatarUri } : null));
         
         const storedUser = await AsyncStorage.getItem("user");
         if (storedUser) {
           const parsedUser = JSON.parse(storedUser);
-          parsedUser.avatar = newAvatarUri;
+          parsedUser.profileImage = newAvatarUri;
           await AsyncStorage.setItem("user", JSON.stringify(parsedUser));
         }
       }
@@ -136,16 +138,22 @@ export default function ProfileScreen() {
 
   // --- LOGIC: EDIT PROFILE ---
   const openEditProfile = () => {
-    setEditName(user?.name || "");
-    setEditUsername(user?.username || "");
+    // Lấy tên từ bất kỳ field nào có dữ liệu để đổ vào form
+    setEditFullName(user?.fullName || user?.name || user?.username || "");
+    setEditPhone(user?.phone || "");
     setIsEditVisible(true);
   };
 
   const handleSaveProfile = async () => {
     if (!user) return;
     
-    // Cập nhật State
-    const updatedUser = { ...user, name: editName, username: editUsername };
+    // Cập nhật State cho cả fullName và name để an toàn
+    const updatedUser = { 
+      ...user, 
+      fullName: editFullName, 
+      name: editFullName, // Đồng bộ để HomeScreen nhận diện
+      phone: editPhone 
+    };
     setUser(updatedUser);
 
     // Lưu đè vào Storage
@@ -153,8 +161,9 @@ export default function ProfileScreen() {
       const storedUser = await AsyncStorage.getItem("user");
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
-        parsedUser.name = editName;
-        parsedUser.username = editUsername;
+        parsedUser.fullName = editFullName;
+        parsedUser.name = editFullName; // Lưu key 'name' để HomeScreen lấy chính xác
+        parsedUser.phone = editPhone;
         await AsyncStorage.setItem("user", JSON.stringify(parsedUser));
       }
     } catch (error) {
@@ -185,6 +194,9 @@ export default function ProfileScreen() {
 
   if (!user) return <View style={styles.container} />;
 
+  // Xử lý chuỗi tên hiển thị an toàn nhất giống HomeScreen
+  const displayName = user.fullName || user.name || user.username || user.email || "Guest";
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -199,8 +211,8 @@ export default function ProfileScreen() {
         {/* Avatar + Info */}
         <View style={styles.profileSection}>
           <View style={styles.avatarWrapper}>
-            {user.avatar ? (
-              <Image source={{ uri: user.avatar }} style={styles.avatar} />
+            {user.profileImage ? (
+              <Image source={{ uri: user.profileImage }} style={styles.avatar} />
             ) : (
               <View style={styles.avatarPlaceholder}>
                 <Ionicons name="person" size={48} color="#555" />
@@ -211,7 +223,8 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.userName}>{user.name || user.username || "Guest"}</Text>
+          {/* HIỂN THỊ TÊN ĐÃ ĐỒNG BỘ CHUẨN XÁC */}
+          <Text style={styles.userName}>{displayName}</Text>
           <Text style={styles.userEmail}>{user.email}</Text>
 
           <TouchableOpacity style={styles.editProfileBtn} onPress={openEditProfile}>
@@ -232,6 +245,18 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>ACCOUNT</Text>
           <View style={styles.menuCard}>
+            
+            {user.role === "admin" && (
+              <>
+                <MenuItem
+                  icon="grid-outline"
+                  label="Admin Dashboard"
+                  onPress={() => router.push("/admin/DashBoardAdmin")} 
+                />
+                <View style={styles.menuDivider} />
+              </>
+            )}
+
             <MenuItem
               icon="receipt-outline"
               label="My Orders"
@@ -265,7 +290,6 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* App version */}
         <Text style={styles.version}>Cinema Premium v1.0.0</Text>
       </ScrollView>
 
@@ -279,22 +303,22 @@ export default function ProfileScreen() {
               <Text style={styles.inputLabel}>Full Name</Text>
               <TextInput
                 style={styles.textInput}
-                value={editName}
-                onChangeText={setEditName}
-                placeholder="Enter your name"
+                value={editFullName}
+                onChangeText={setEditFullName}
+                placeholder="Enter your full name"
                 placeholderTextColor="#6B7280"
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Username</Text>
+              <Text style={styles.inputLabel}>Phone Number</Text>
               <TextInput
                 style={styles.textInput}
-                value={editUsername}
-                onChangeText={setEditUsername}
-                placeholder="Enter username"
+                value={editPhone}
+                onChangeText={setEditPhone}
+                placeholder="Enter your phone number"
                 placeholderTextColor="#6B7280"
-                autoCapitalize="none"
+                keyboardType="phone-pad"
               />
             </View>
 
@@ -320,19 +344,6 @@ export default function ProfileScreen() {
               <TouchableOpacity onPress={() => setIsSettingsVisible(false)}>
                 <Ionicons name="close-circle" size={26} color="#6B7280" />
               </TouchableOpacity>
-            </View>
-
-            <View style={styles.settingRow}>
-              <View style={styles.settingRowLeft}>
-                <Ionicons name="notifications-outline" size={22} color="#E5E7EB" />
-                <Text style={styles.settingText}>Push Notifications</Text>
-              </View>
-              <Switch
-                trackColor={{ false: "#29313D", true: "#E50914" }}
-                thumbColor={notificationsEnabled ? "#ffffff" : "#9CA3AF"}
-                onValueChange={() => setNotificationsEnabled(!notificationsEnabled)}
-                value={notificationsEnabled}
-              />
             </View>
             
             <View style={styles.settingRow}>
