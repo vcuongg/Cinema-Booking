@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { showMessage } from "@/shared/utils/showMessage";
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -26,6 +27,7 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   const normalizedName = useMemo(() => name.trim(), [name]);
   const normalizedUsername = useMemo(() => username.trim().toLowerCase(), [username]);
@@ -36,6 +38,21 @@ export default function RegisterScreen() {
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail) &&
     password.length >= 6 &&
     password === confirmPassword;
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener("keyboardDidShow", () => {
+      setIsKeyboardVisible(true);
+    });
+
+    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   const handleRegister = async () => {
     if (!normalizedName) {
@@ -120,13 +137,16 @@ export default function RegisterScreen() {
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
           style={styles.keyboardView}
-          behavior={
-            Platform.OS === "ios" ? "padding" : undefined
-          }
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
         >
           <ScrollView
-            contentContainerStyle={styles.content}
+            contentContainerStyle={[
+              styles.content,
+              isKeyboardVisible && styles.contentWithKeyboard,
+            ]}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
             showsVerticalScrollIndicator={false}
           >
             <Pressable
@@ -397,6 +417,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingTop: 12,
     paddingBottom: 30,
+  },
+
+  contentWithKeyboard: {
+    paddingTop: 8,
+    paddingBottom: 36,
   },
 
   backButton: {

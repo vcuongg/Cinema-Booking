@@ -87,7 +87,7 @@ export default function MovieDetailScreen() {
     }, [movieId]);
 
     useEffect(() => {
-        loadMovie();
+        void loadMovie();
     }, [loadMovie]);
 
     const openShowtimes = () => {
@@ -100,6 +100,15 @@ export default function MovieDetailScreen() {
             params: { movieId },
         });
     };
+
+    const handleBackPress = useCallback(() => {
+        if (router.canGoBack()) {
+            router.back();
+            return;
+        }
+
+        router.replace("/home");
+    }, []);
 
     if (loading) {
         return (
@@ -121,7 +130,7 @@ export default function MovieDetailScreen() {
             <SafeAreaView style={styles.errorScreen}>
                 <Pressable
                     style={styles.topBackButton}
-                    onPress={() => router.back()}
+                    onPress={handleBackPress}
                 >
                     <Ionicons
                         name="chevron-back"
@@ -169,10 +178,6 @@ export default function MovieDetailScreen() {
         )
         : "Updating";
 
-    const formattedPrice = movie.priceFrom
-        ? `${movie.priceFrom.toLocaleString("vi-VN")}đ`
-        : "Contact";
-
     return (
         <SafeAreaView style={styles.safeArea}>
             <ScrollView
@@ -216,7 +221,7 @@ export default function MovieDetailScreen() {
                     <View style={styles.posterTopBar}>
                         <Pressable
                             style={styles.roundButton}
-                            onPress={() => router.back()}
+                            onPress={handleBackPress}
                         >
                             <Ionicons
                                 name="chevron-back"
@@ -375,45 +380,7 @@ export default function MovieDetailScreen() {
                         </View>
                     ) : null}
 
-                    {movie.trailer ? (
-                        <Pressable style={styles.trailerButton}>
-                            <View style={styles.playIcon}>
-                                <Ionicons
-                                    name="play"
-                                    size={20}
-                                    color="#FFFFFF"
-                                />
-                            </View>
-
-                            <View style={styles.trailerContent}>
-                                <Text style={styles.trailerTitle}>
-                                    Watch Trailer
-                                </Text>
-
-                                <Text style={styles.trailerSubtitle}>
-                                    Preview this movie
-                                </Text>
-                            </View>
-
-                            <Ionicons
-                                name="open-outline"
-                                size={21}
-                                color="#9CA3AF"
-                            />
-                        </Pressable>
-                    ) : null}
-
                     <View style={styles.bookingCard}>
-                        <View>
-                            <Text style={styles.priceLabel}>
-                                Ticket price from
-                            </Text>
-
-                            <Text style={styles.priceValue}>
-                                {formattedPrice}
-                            </Text>
-                        </View>
-
                         <Pressable
                             style={styles.bookButton}
                             onPress={openShowtimes}
@@ -796,66 +763,16 @@ const styles = StyleSheet.create({
         fontSize: 12,
     },
 
-    trailerButton: {
-        minHeight: 72,
-        flexDirection: "row",
-        alignItems: "center",
-        marginTop: 26,
-        paddingHorizontal: 14,
-        borderRadius: 15,
-        backgroundColor: "#111821",
-        borderWidth: 1,
-        borderColor: "#29313D",
-    },
-
-    playIcon: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "#E50914",
-    },
-
-    trailerContent: {
-        flex: 1,
-        marginLeft: 12,
-    },
-
-    trailerTitle: {
-        color: "#FFFFFF",
-        fontSize: 14,
-        fontWeight: "800",
-    },
-
-    trailerSubtitle: {
-        color: "#9CA3AF",
-        fontSize: 11,
-        marginTop: 4,
-    },
-
     bookingCard: {
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "space-between",
+        justifyContent: "center",
         marginTop: 27,
         padding: 17,
         borderRadius: 18,
         backgroundColor: "#201114",
         borderWidth: 1,
         borderColor: "#5E252B",
-    },
-
-    priceLabel: {
-        color: "#C1A8AA",
-        fontSize: 11,
-    },
-
-    priceValue: {
-        color: "#FFFFFF",
-        fontSize: 22,
-        fontWeight: "900",
-        marginTop: 4,
     },
 
     bookButton: {
