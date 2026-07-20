@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -14,9 +14,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import ImagePicker from "@/shared/components/ImagePicker"; 
+// IMPORT HÀM TỪ SERVICE CỦA TEAM MEMBER:
+import { getMyBookings } from "@/shared/services/BookingService"; 
 
 // ==================== TYPES ====================
 interface MenuItemProps {
@@ -26,7 +29,6 @@ interface MenuItemProps {
   danger?: boolean;
 }
 
-// CẬP NHẬT: Thêm fallback name, username, email để đồng bộ với HomeScreen
 interface UserProfile {
   fullName?: string;
   name?: string;
@@ -44,19 +46,11 @@ function MenuItem({ icon, label, onPress, danger }: MenuItemProps) {
     <TouchableOpacity style={styles.menuItem} onPress={onPress}>
       <View style={styles.menuLeft}>
         <View style={[styles.menuIconBox, danger && styles.menuIconBoxDanger]}>
-          <Ionicons
-            name={icon as any}
-            size={18}
-            color={danger ? "#E50914" : "#aaa"}
-          />
+          <Ionicons name={icon as any} size={18} color={danger ? "#E50914" : "#aaa"} />
         </View>
-        <Text style={[styles.menuLabel, danger && styles.menuLabelDanger]}>
-          {label}
-        </Text>
+        <Text style={[styles.menuLabel, danger && styles.menuLabelDanger]}>{label}</Text>
       </View>
-      {!danger && (
-        <Ionicons name="chevron-forward" size={16} color="#555" />
-      )}
+      {!danger && <Ionicons name="chevron-forward" size={16} color="#555" />}
     </TouchableOpacity>
   );
 }
@@ -68,6 +62,9 @@ export default function ProfileScreen() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   
+  // LOGIC MỚI: Thêm state quản lý Total Orders
+  const [totalOrders, setTotalOrders] = useState(0); 
+  
   // States cho Modals
   const [isHelpVisible, setIsHelpVisible] = useState(false);
   const [isEditVisible, setIsEditVisible] = useState(false);
@@ -76,9 +73,9 @@ export default function ProfileScreen() {
   const [editFullName, setEditFullName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   
-  // States cho Settings
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
+  // 1. Load thông tin user
   useEffect(() => {
     const loadUserData = async () => {
       try {
@@ -87,7 +84,6 @@ export default function ProfileScreen() {
           const parsedUser = JSON.parse(storedUser);
           setUser({
             ...parsedUser,
-            orders: 0,
             profileImage: parsedUser.profileImage || null,
           });
         } else {
@@ -102,6 +98,34 @@ export default function ProfileScreen() {
 
     void loadUserData();
   }, [router]);
+
+  // 2. LOGIC MỚI: Load số lượng order mỗi khi màn hình được Focus
+  useFocusEffect(
+    useCallback(() => {
+      const fetchTotalOrders = async () => {
+        try {
+          const token = await AsyncStorage.getItem("token");
+          if (!token) return;
+
+          // Gọi API lấy danh sách vé từ service đồng đội viết
+          const myBookings = await getMyBookings(token);
+
+          // Đếm các vé đã thanh toán thành công
+          const validOrders = myBookings.filter(
+            (booking) => 
+              booking.paymentStatus === "paid" && 
+              booking.bookingStatus === "confirmed"
+          );
+
+          setTotalOrders(validOrders.length);
+        } catch (error) {
+          console.error("Lỗi khi fetch total orders:", error);
+        }
+      };
+
+      fetchTotalOrders();
+    }, [])
+  );
 
   // --- LOGIC: CHỌN ẢNH ---
   const pickImage = async () => {
@@ -138,7 +162,6 @@ export default function ProfileScreen() {
 
   // --- LOGIC: EDIT PROFILE ---
   const openEditProfile = () => {
-    // Lấy tên từ bất kỳ field nào có dữ liệu để đổ vào form
     setEditFullName(user?.fullName || user?.name || user?.username || "");
     setEditPhone(user?.phone || "");
     setIsEditVisible(true);
@@ -147,22 +170,20 @@ export default function ProfileScreen() {
   const handleSaveProfile = async () => {
     if (!user) return;
     
-    // Cập nhật State cho cả fullName và name để an toàn
     const updatedUser = { 
       ...user, 
       fullName: editFullName, 
-      name: editFullName, // Đồng bộ để HomeScreen nhận diện
+      name: editFullName, 
       phone: editPhone 
     };
     setUser(updatedUser);
 
-    // Lưu đè vào Storage
     try {
       const storedUser = await AsyncStorage.getItem("user");
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
         parsedUser.fullName = editFullName;
-        parsedUser.name = editFullName; // Lưu key 'name' để HomeScreen lấy chính xác
+        parsedUser.name = editFullName; 
         parsedUser.phone = editPhone;
         await AsyncStorage.setItem("user", JSON.stringify(parsedUser));
       }
@@ -194,7 +215,6 @@ export default function ProfileScreen() {
 
   if (!user) return <View style={styles.container} />;
 
-  // Xử lý chuỗi tên hiển thị an toàn nhất giống HomeScreen
   const displayName = user.fullName || user.name || user.username || user.email || "Guest";
 
   return (
@@ -223,7 +243,6 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* HIỂN THỊ TÊN ĐÃ ĐỒNG BỘ CHUẨN XÁC */}
           <Text style={styles.userName}>{displayName}</Text>
           <Text style={styles.userEmail}>{user.email}</Text>
 
@@ -236,7 +255,10 @@ export default function ProfileScreen() {
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
             <Ionicons name="receipt-outline" size={26} color="#E50914" />
-            <Text style={styles.statNumber}>{user.orders}</Text>
+            
+            {/* THAY ĐỔI: Dùng state totalOrders thay vì user.orders cứng */}
+            <Text style={styles.statNumber}>{totalOrders}</Text>
+            
             <Text style={styles.statLabel}>TOTAL ORDERS</Text>
           </View>
         </View>
