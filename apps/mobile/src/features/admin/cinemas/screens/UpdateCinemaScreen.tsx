@@ -45,6 +45,14 @@ export default function CreateCinemaScreen() {
   const [halls, setHalls] = useState<Room[]>([]);
   const [nextHallName, setNextHallName] = useState("");
 
+  const showAlert = (title: string, message: string) => {
+    if (Platform.OS === "web") {
+      window.alert(`${title}\n\n${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
+
   const handlePickCover = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
@@ -117,7 +125,7 @@ export default function CreateCinemaScreen() {
     } catch (error) {
       console.error(error);
 
-      Alert.alert("Error", "Cannot load cinema.");
+      showAlert("Error", "Cannot load cinema.");
     } finally {
       setLoading(false);
     }
@@ -143,17 +151,17 @@ export default function CreateCinemaScreen() {
 
   const validateForm = () => {
     if (!cinemaName.trim()) {
-      Alert.alert("Validation", "Cinema name is required.");
+      showAlert("Validation", "Cinema name is required.");
       return false;
     }
 
     if (!address.trim()) {
-      Alert.alert("Validation", "Address is required.");
+      showAlert("Validation", "Address is required.");
       return false;
     }
 
     if (!city.trim()) {
-      Alert.alert("Validation", "City is required.");
+      showAlert("Validation", "City is required.");
       return false;
     }
 
@@ -181,7 +189,7 @@ export default function CreateCinemaScreen() {
       await updateCinema(id, payload);
 
       if (Platform.OS === "web") {
-        Alert.alert("Success", "Cinema updated successfully.");
+        showAlert("Success", "Cinema updated successfully.");
 
         router.replace("/admin/CinemaManagement");
       } else {
@@ -194,10 +202,9 @@ export default function CreateCinemaScreen() {
       }
     } catch (error) {
       console.error(error);
-
-      Alert.alert(
+      showAlert(
         "Error",
-        error instanceof Error ? error.message : "Failed to update cinema.",
+        error instanceof Error ? error.message : "An error occurred.",
       );
     } finally {
       setSaving(false);
@@ -352,7 +359,6 @@ export default function CreateCinemaScreen() {
                   {hall.totalSeats} Seats · {hall.rows} × {hall.seatsPerRow}
                 </Text>
               </View>
-
             </View>
           ))
         )}

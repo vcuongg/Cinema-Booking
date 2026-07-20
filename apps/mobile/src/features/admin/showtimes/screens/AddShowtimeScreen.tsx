@@ -59,6 +59,14 @@ function formatDateDisplay(date: Date) {
   return `${m}/${d}/${y}`;
 }
 
+const showAlert = (title: string, message: string) => {
+  if (Platform.OS === "web") {
+    window.alert(`${title}\n\n${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
+};
+
 function formatTimeDisplay(date: Date) {
   let hour = date.getHours();
 
@@ -129,7 +137,7 @@ export default function AddShowtimeScreen() {
 
       setMovie(currentMovie);
     } catch (err: any) {
-      Alert.alert("Error", err.message);
+      showAlert("Error", err.message);
     } finally {
       setLoading(false);
     }
@@ -155,47 +163,43 @@ export default function AddShowtimeScreen() {
 
   const handleSave = async () => {
     if (!movieId) {
-      return Alert.alert("Validation", "Movie not found");
+      return showAlert("Validation", "Movie not found");
     }
 
     if (!cinemaId) {
-      return Alert.alert("Validation", "Please select cinema");
+      return showAlert("Validation", "Please select cinema");
     }
 
     if (!roomId) {
-      return Alert.alert("Validation", "Please select room");
+      return showAlert("Validation", "Please select room");
     }
 
     if (!date) {
-      return Alert.alert("Validation", "Please select date");
+      return showAlert("Validation", "Please select date");
     }
 
     if (!startTime) {
-      return Alert.alert("Validation", "Please select start time");
+      return showAlert("Validation", "Please select start time");
     }
 
     if (!price) {
-      return Alert.alert("Validation", "Please enter ticket price");
+      return showAlert("Validation", "Please enter ticket price");
     }
 
     try {
       await createShowtime({
         movieId,
-
         roomId,
-
         showDate: date.toISOString(),
-
         startTime: formatTimeApi(startTime),
-
         price: Number(price),
       });
 
-      Alert.alert("Success", "Showtime created successfully");
+      showAlert("Success", "Showtime created successfully");
 
       router.replace("/admin/DashBoardAdmin");
     } catch (err: any) {
-      Alert.alert("Error", err.message);
+      showAlert("Error", err.message);
     }
   };
   return (
