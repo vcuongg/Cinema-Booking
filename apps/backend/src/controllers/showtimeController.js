@@ -211,6 +211,14 @@ const createShowtime = async (req, res) => {
     // ===== Calculate end time =====
 
     const endTime = calculateEndTime(startTime, movie.duration);
+    const endHour = Number(endTime.split(":")[0]);
+
+    if (endHour >= 24) {
+      return res.status(400).json({
+        error:
+          "The movie ends after midnight. Please choose an earlier start time.",
+      });
+    }
 
     // ===== Check duplicated showtime =====
 
@@ -362,6 +370,15 @@ const updateShowtime = async (req, res) => {
 
     const endTime = calculateEndTime(startTime, movie.duration);
 
+    const endHour = Number(endTime.split(":")[0]);
+
+    if (endHour >= 24) {
+      return res.status(400).json({
+        error:
+          "The movie ends after midnight. Please choose an earlier start time.",
+      });
+    }
+
     // ================= Conflict check =================
 
     const selectedDate = new Date(showDate);
@@ -456,18 +473,14 @@ const deleteShowtime = async (req, res) => {
 
     showStart.setHours(hour, minute, 0, 0);
 
+    // Không cho xóa nếu suất chiếu đã bắt đầu
     if (now >= showStart) {
       return res.status(400).json({
         error: "Cannot delete a showtime that has already started.",
       });
     }
 
-    if (now >= showEnd) {
-      return res.status(400).json({
-        error: "Completed showtimes are read-only and cannot be deleted.",
-      });
-    }
-
+    // Không cho xóa nếu đã có booking
     const bookingCount = await Booking.countDocuments({
       showtimeId: id,
     });
@@ -480,11 +493,13 @@ const deleteShowtime = async (req, res) => {
 
     await Showtime.findByIdAndDelete(id);
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Showtime deleted successfully.",
     });
   } catch (error) {
-    res.status(400).json({
+    console.error("Delete showtime error:", error);
+
+    return res.status(500).json({
       error: error.message,
     });
   }

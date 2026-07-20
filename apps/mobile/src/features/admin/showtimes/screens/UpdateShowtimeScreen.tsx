@@ -57,6 +57,14 @@ function formatDateDisplay(date: Date) {
   return `${m}/${d}/${y}`;
 }
 
+const showAlert = (title: string, message: string) => {
+  if (Platform.OS === "web") {
+    window.alert(`${title}\n\n${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
+};
+
 function formatTimeDisplay(date: Date) {
   let h = date.getHours();
 
@@ -159,7 +167,7 @@ export default function UpdateShowtimeScreen() {
 
       setPrice(showtime.price.toString());
     } catch (error: any) {
-      Alert.alert("Error", error.message);
+      showAlert("Error", error.message);
     } finally {
       setLoading(false);
     }
@@ -182,23 +190,19 @@ export default function UpdateShowtimeScreen() {
 
   const handleUpdateShowtime = async () => {
     if (!roomId) {
-      Alert.alert("Validation", "Please select a room.");
-      return;
+      return showAlert("Validation", "Please select room");
     }
 
     if (!date) {
-      Alert.alert("Validation", "Please select a date.");
-      return;
+      return showAlert("Validation", "Please select date");
     }
 
     if (!startTime) {
-      Alert.alert("Validation", "Please select a start time.");
-      return;
+      return showAlert("Validation", "Please select start time");
     }
 
     if (!price || Number(price) <= 0) {
-      Alert.alert("Validation", "Please enter a valid ticket price.");
-      return;
+      return showAlert("Validation", "Please enter ticket price");
     }
 
     try {
@@ -217,11 +221,7 @@ export default function UpdateShowtimeScreen() {
     } catch (error: any) {
       console.log(error);
 
-      if (Platform.OS === "web") {
-        window.alert(error.message);
-      } else {
-        Alert.alert("Error", error.message);
-      }
+      showAlert("Error", error.message);
     }
   };
 

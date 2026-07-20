@@ -73,6 +73,14 @@ export default function CreateCinemaScreen() {
     reader.readAsDataURL(blob);
   };
 
+  const showAlert = (title: string, message: string) => {
+    if (Platform.OS === "web") {
+      window.alert(`${title}\n\n${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
+
   const handleAddHall = () => {
     const name = nextHallName.trim();
     if (!name) return;
@@ -97,17 +105,17 @@ export default function CreateCinemaScreen() {
 
   const validateForm = () => {
     if (!cinemaName.trim()) {
-      Alert.alert("Validation", "Cinema name is required.");
+      showAlert("Validation", "Cinema name is required.");
       return false;
     }
 
     if (!address.trim()) {
-      Alert.alert("Validation", "Address is required.");
+      showAlert("Validation", "Address is required.");
       return false;
     }
 
     if (!city.trim()) {
-      Alert.alert("Validation", "City is required.");
+      showAlert("Validation", "City is required.");
       return false;
     }
 
@@ -139,7 +147,7 @@ export default function CreateCinemaScreen() {
       await createCinema(payload);
 
       if (Platform.OS === "web") {
-        Alert.alert("Success", "Cinema created successfully.");
+        showAlert("Success", "Cinema created successfully.");
         router.replace("/admin/CinemaManagement");
       } else {
         Alert.alert("Success", "Cinema created successfully.", [
@@ -151,11 +159,7 @@ export default function CreateCinemaScreen() {
       }
     } catch (error) {
       console.error(error);
-
-      Alert.alert(
-        "Error",
-        error instanceof Error ? error.message : "Failed to create cinema.",
-      );
+      showAlert("Error", error instanceof Error ? error.message : "An error occurred.");
     } finally {
       setSaving(false);
     }
