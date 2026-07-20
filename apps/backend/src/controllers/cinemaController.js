@@ -44,17 +44,30 @@ const getActiveCinemas = async (req, res) => {
 };
 
 // ================= SEARCH CINEMAS =================
+const removeVietnameseTones = (str) => {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase();
+};
 
 const searchCinemas = async (req, res) => {
-  try {
-    const keyword = req.query.keyword || "";
+  const { keyword } = req.query;
 
-    const cinemas = await Cinema.find({
-      cinemaName: {
-        $regex: keyword,
-        $options: "i",
-      },
+  try {
+    let cinemas = await Cinema.find().sort({
+      cinemaName: 1,
     });
+
+    if (keyword && keyword.trim() !== "") {
+      const keywordNormalized = removeVietnameseTones(keyword);
+
+      cinemas = cinemas.filter((cinema) =>
+        removeVietnameseTones(cinema.cinemaName).includes(keywordNormalized),
+      );
+    }
 
     res.status(200).json(cinemas);
   } catch (error) {
@@ -63,7 +76,6 @@ const searchCinemas = async (req, res) => {
     });
   }
 };
-
 // ================= GET CINEMA BY ID =================
 
 const getCinemaById = async (req, res) => {

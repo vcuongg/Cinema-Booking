@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { User } from "@/shared/types/auth";
 import { Redirect } from "expo-router";
 import {
   useEffect,
@@ -16,14 +17,22 @@ export default function IndexRoute() {
 
   const [hasToken, setHasToken] =
     useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     async function checkSession() {
       try {
-        const token =
-          await AsyncStorage.getItem("token");
+        const token = await AsyncStorage.getItem("token");
+        const savedUser = await AsyncStorage.getItem("user");
+        let isAdmin = false;
+        if (savedUser) {
+          try {
+            isAdmin = (JSON.parse(savedUser) as User).role === "admin";
+          } catch { /* expired/invalid session data */ }
+        }
 
         setHasToken(Boolean(token));
+        setIsAdmin(Boolean(token) && isAdmin);
       } catch {
         setHasToken(false);
       } finally {
@@ -45,11 +54,7 @@ export default function IndexRoute() {
     );
   }
 
-  return (
-    <Redirect
-      href={hasToken ? "/home" : "/login"}
-    />
-  );
+  return <Redirect href={hasToken ? (isAdmin ? "/admin/DashBoardAdmin" : "/home") : "/login"} />;
 
 }
 

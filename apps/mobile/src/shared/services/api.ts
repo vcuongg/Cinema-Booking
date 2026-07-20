@@ -22,6 +22,7 @@ function resolveNativeApiUrl() {
   // Expo dev host lets real devices access backend running on the same LAN.
   const hostUri =
     Constants.expoConfig?.hostUri ??
+    Constants.manifest?.debuggerHost ??
     Constants.manifest2?.extra?.expoGo?.debuggerHost;
 
   const host = hostUri?.split(":")[0];
@@ -40,6 +41,35 @@ export const API_BASE_URL =
     ? WEB_API_URL
     : resolveNativeApiUrl()
   ).replace(/\/$/, "");
+
+export function resolveAssetUrl(value?: string | null): string | undefined {
+  const raw = value?.trim();
+  if (!raw) return undefined;
+  if (raw.startsWith("data:")) return raw;
+  if (raw.startsWith("//")) return `https:${raw}`;
+  if (raw.startsWith("http://") || raw.startsWith("https://")) {
+    try {
+      const url = new URL(raw);
+      const api = new URL(API_BASE_URL);
+
+      // TMDB image paths are occasionally saved with the website host. The
+      // dedicated CDN host is the supported image origin and works reliably
+      // with Android image loaders.
+      if (
+        url.hostname === "www.themoviedb.org" &&
+        url.pathname.startsWith("/t/p/")
+      ) {
+        url.hostname = "image.tmdb.org";
+      }
+
+      if (["localhost", "127.0.0.1", "0.0.0.0"].includes(url.hostname)) url.hostname = api.hostname;
+      if (Platform.OS === "android" && url.hostname !== api.hostname) url.protocol = "https:";
+      return url.toString();
+    } catch { return raw; }
+  }
+  const assetOrigin = API_BASE_URL.replace(/\/api\/?$/, "");
+  return `${assetOrigin}${raw.startsWith("/") ? raw : `/${raw}`}`;
+}
 
 function buildBaseUrlCandidates() {
   const primary = API_BASE_URL;
@@ -119,6 +149,12 @@ export async function apiRequest<T>(
       }
 
       if (!response.ok) {
+        // A stale backend process can still be listening on the first port
+        // after the API was moved to the fallback port. Try the next backend
+        // candidate for missing routes as well as connection failures.
+        if (response.status === 404 && baseUrls.indexOf(baseUrl) < baseUrls.length - 1) {
+          continue;
+        }
         const errorData = data as ApiErrorResponse | null;
 
         throw new Error(

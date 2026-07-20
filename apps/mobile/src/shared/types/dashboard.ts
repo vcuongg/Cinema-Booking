@@ -2,6 +2,7 @@ export interface DashboardTopMovie {
   movieId: string;
   title: string;
   poster: string;
+  posterUrl?: string;
   ticketsSold: number;
   revenue: number;
 }

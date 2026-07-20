@@ -725,7 +725,11 @@ const getAdminBookingSummary = async (req, res) => {
             title: { $first: "$movie.title" },
             poster: {
               $first: {
-                $ifNull: ["$movie.poster", "$movie.posterUrl"],
+                $cond: [
+                  { $ne: [{ $ifNull: ["$movie.poster", ""] }, ""] },
+                  "$movie.poster",
+                  { $ifNull: ["$movie.posterUrl", ""] },
+                ],
               },
             },
             ticketsSold: {

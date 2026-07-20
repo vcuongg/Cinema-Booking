@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   cardImageOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(10,10,12,0.15)",
   },
   badgeWrap: {

@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { View, Text, StyleSheet, Image } from "react-native";
+import { Image } from "expo-image";
+import { View, Text, StyleSheet } from "react-native";
 
 type Props = {
   rank: number;
@@ -29,8 +30,10 @@ export default function MovieCard({
     <View style={styles.card}>
       {image ? (
         <Image
-          source={{ uri: image }}
+          source={{ uri: image.trim() }}
           style={styles.poster}
+          contentFit="cover"
+          cachePolicy="memory-disk"
         />
       ) : (
         <View style={styles.posterPlaceholder}>
