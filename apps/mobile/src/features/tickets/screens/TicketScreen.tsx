@@ -44,37 +44,6 @@ const TEST_TOKEN = '';
 const fallbackPosterUrl =
   'https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg';
 
-const demoTickets: TicketView[] = [
-  {
-    id: 'demo-ticket-1',
-    movieTitle: "Oppenheimer: The Director's Cut",
-    posterUrl: fallbackPosterUrl,
-    formatLabel: 'IMAX 3D',
-    cinemaName: 'AMC Empire 25, Times Square',
-    dateLabel: 'Oct 24, 2024',
-    timeLabel: '19:30',
-    rowLabel: 'H',
-    seatLabel: '14, 15',
-    hallLabel: '04',
-    ticketCode: 'CB-DEMO-0001',
-    isPast: false,
-  },
-  {
-    id: 'demo-ticket-2',
-    movieTitle: 'Dune: Part Two',
-    posterUrl: fallbackPosterUrl,
-    formatLabel: '2D',
-    cinemaName: 'Grand Cinema',
-    dateLabel: 'Nov 12, 2023',
-    timeLabel: '21:00',
-    rowLabel: 'G',
-    seatLabel: '08',
-    hallLabel: '02',
-    ticketCode: 'CB-DEMO-0002',
-    isPast: true,
-  },
-];
-
 function getParamValue(value?: string | string[]) {
   if (Array.isArray(value)) {
     return value[0] || '';
@@ -163,22 +132,30 @@ function mapBookingToTicket(booking: Booking): TicketView {
 export default function TicketScreen() {
   const params = useLocalSearchParams<{ token?: string }>();
   const [activeTab, setActiveTab] = useState<TicketTab>('all');
-  const [tickets, setTickets] = useState<TicketView[]>(demoTickets);
+  const [tickets, setTickets] = useState<TicketView[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [storedToken, setStoredToken] = useState('');
+  const [tokenReady, setTokenReady] = useState(false);
 
   const token = getParamValue(params.token) || storedToken || TEST_TOKEN;
 
   useEffect(() => {
     AsyncStorage.getItem('token')
       .then((nextToken) => setStoredToken(nextToken || ''))
-      .catch(() => setStoredToken(''));
+      .catch(() => setStoredToken(''))
+      .finally(() => setTokenReady(true));
   }, []);
 
   useEffect(() => {
+    if (!tokenReady) {
+      return;
+    }
+
     if (!token) {
-      setTickets(demoTickets);
+      setTickets([]);
+      setLoading(false);
+      setError('Please login to view your tickets.');
       return;
     }
 
@@ -187,6 +164,7 @@ export default function TicketScreen() {
     const loadTickets = async () => {
       setLoading(true);
       setError('');
+      setTickets([]);
 
       try {
         const bookings = await getMyBookings(token);
@@ -217,7 +195,7 @@ export default function TicketScreen() {
     return () => {
       isMounted = false;
     };
-  }, [token]);
+  }, [token, tokenReady]);
 
   const visibleTickets = useMemo(
     () => {
@@ -231,8 +209,7 @@ export default function TicketScreen() {
     },
     [activeTab, tickets],
   );
-  const featuredTicket = visibleTickets[0];
-  const peekTicket = visibleTickets[1];
+  const hasTickets = visibleTickets.length > 0;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -275,10 +252,10 @@ export default function TicketScreen() {
           </View>
         </View>
 
-        {loading && <Text style={styles.helperText}>Loading tickets...</Text>}
+        {(!tokenReady || loading) && <Text style={styles.helperText}>Loading tickets...</Text>}
         {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-        {!featuredTicket && !loading ? (
+        {!hasTickets && tokenReady && !loading ? (
           <View style={styles.emptyCard}>
             <MaterialIcons name="local-activity" size={32} color="#e50914" />
             <Text style={styles.emptyTitle}>No tickets found</Text>
@@ -290,22 +267,11 @@ export default function TicketScreen() {
           </View>
         ) : null}
 
-        {featuredTicket ? (
-          <View style={[styles.ticketStack, activeTab === 'past' && styles.pastStack]}>
-            <TicketCard ticket={featuredTicket} />
-
-            {peekTicket ? (
-              <View style={styles.peekTicket}>
-                <View style={styles.peekTextWrap}>
-                  <Text style={styles.peekTitle}>{peekTicket.movieTitle}</Text>
-                  <Text style={styles.peekMeta}>
-                    {peekTicket.dateLabel} - {peekTicket.timeLabel}
-                  </Text>
-                </View>
-
-                <MaterialIcons name="local-activity" size={24} color="#e50914" />
-              </View>
-            ) : null}
+        {hasTickets ? (
+          <View style={[styles.ticketList, activeTab === 'past' && styles.pastStack]}>
+            {visibleTickets.map((ticket) => (
+              <TicketCard key={ticket.id} ticket={ticket} />
+            ))}
           </View>
         ) : null}
       </ScrollView>
@@ -324,7 +290,6 @@ function TicketCard({ ticket }: { ticket: TicketView }) {
   return (
     <Pressable
       style={({ pressed }) => [
-        styles.ticketPressable,
         pressed && styles.ticketPressed,
       ]}>
       <View style={styles.ticketCard}>
@@ -489,7 +454,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 176,
+    paddingBottom: 32,
   },
   titleBlock: {
     marginBottom: 24,
@@ -558,14 +523,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 6,
   },
-  ticketStack: {
-    opacity: 1,
+  ticketList: {
+    gap: 14,
   },
   pastStack: {
     opacity: 0.82,
-  },
-  ticketPressable: {
-    marginBottom: 16,
   },
   ticketPressed: {
     transform: [{ scale: 0.98 }],
@@ -694,43 +656,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     maxWidth: '95%',
   },
-  peekTicket: {
-    marginTop: 0,
-    marginBottom: 28,
-    marginHorizontal: 0,
-    padding: 20,
-    borderRadius: 16,
-    backgroundColor: '#232a34',
-    borderWidth: 1,
-    borderColor: 'rgba(94, 63, 59, 0.2)',
-    opacity: 0.92,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  peekTextWrap: {
-    flex: 1,
-    paddingRight: 12,
-  },
-  peekTitle: {
-    color: '#dce3f0',
-    fontSize: 20,
-    fontWeight: '600',
-  },
-  peekMeta: {
-    color: '#c8c6c5',
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 4,
-  },
   bottomNav: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 28,
+    paddingBottom: 20,
+    minHeight: 82,
     backgroundColor: 'rgba(13, 20, 29, 0.96)',
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.05)',
