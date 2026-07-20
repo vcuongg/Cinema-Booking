@@ -101,6 +101,15 @@ export default function MovieDetailScreen() {
         });
     };
 
+    const handleBackPress = useCallback(() => {
+        if (router.canGoBack()) {
+            router.back();
+            return;
+        }
+
+        router.replace("/home");
+    }, []);
+
     if (loading) {
         return (
             <SafeAreaView style={styles.loadingScreen}>
@@ -121,7 +130,7 @@ export default function MovieDetailScreen() {
             <SafeAreaView style={styles.errorScreen}>
                 <Pressable
                     style={styles.topBackButton}
-                    onPress={() => router.back()}
+                    onPress={handleBackPress}
                 >
                     <Ionicons
                         name="chevron-back"
@@ -212,7 +221,7 @@ export default function MovieDetailScreen() {
                     <View style={styles.posterTopBar}>
                         <Pressable
                             style={styles.roundButton}
-                            onPress={() => router.back()}
+                            onPress={handleBackPress}
                         >
                             <Ionicons
                                 name="chevron-back"
