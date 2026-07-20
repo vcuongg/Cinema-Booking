@@ -455,6 +455,8 @@ export default function PaymentScreen() {
       return;
     }
 
+    checkPaymentStatus();
+
     const pollId = setInterval(() => {
       checkPaymentStatus();
     }, PAYMENT_POLL_INTERVAL_MS);

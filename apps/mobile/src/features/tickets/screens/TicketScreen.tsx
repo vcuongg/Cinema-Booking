@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { Href, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Image,
@@ -23,7 +23,7 @@ import {
   ShowtimeSummary,
 } from '@/shared/types/booking';
 
-type TicketTab = 'upcoming' | 'past';
+type TicketTab = 'all' | 'upcoming' | 'past';
 
 interface TicketView {
   id: string;
@@ -162,7 +162,7 @@ function mapBookingToTicket(booking: Booking): TicketView {
 
 export default function TicketScreen() {
   const params = useLocalSearchParams<{ token?: string }>();
-  const [activeTab, setActiveTab] = useState<TicketTab>('upcoming');
+  const [activeTab, setActiveTab] = useState<TicketTab>('all');
   const [tickets, setTickets] = useState<TicketView[]>(demoTickets);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -220,10 +220,15 @@ export default function TicketScreen() {
   }, [token]);
 
   const visibleTickets = useMemo(
-    () =>
-      tickets.filter((ticket) =>
+    () => {
+      if (activeTab === 'all') {
+        return tickets;
+      }
+
+      return tickets.filter((ticket) =>
         activeTab === 'past' ? ticket.isPast : !ticket.isPast,
-      ),
+      );
+    },
     [activeTab, tickets],
   );
   const featuredTicket = visibleTickets[0];
@@ -253,6 +258,11 @@ export default function TicketScreen() {
 
           <View style={styles.tabs}>
             <TabButton
+              label="All"
+              active={activeTab === 'all'}
+              onPress={() => setActiveTab('all')}
+            />
+            <TabButton
               label="Upcoming"
               active={activeTab === 'upcoming'}
               onPress={() => setActiveTab('upcoming')}
@@ -273,7 +283,9 @@ export default function TicketScreen() {
             <MaterialIcons name="local-activity" size={32} color="#e50914" />
             <Text style={styles.emptyTitle}>No tickets found</Text>
             <Text style={styles.emptyText}>
-              Your confirmed bookings will appear here after payment.
+              {activeTab === 'all'
+                ? 'Your confirmed bookings will appear here after payment.'
+                : `No ${activeTab} tickets available right now.`}
             </Text>
           </View>
         ) : null}
@@ -299,10 +311,10 @@ export default function TicketScreen() {
       </ScrollView>
 
       <View style={styles.bottomNav}>
-        <BottomNavItem icon="home" label="Home" />
-        <BottomNavItem icon="local-activity" label="Tickets" active />
-        <BottomNavItem icon="favorite" label="Favorites" />
-        <BottomNavItem icon="person" label="Profile" />
+        <BottomNavItem icon="home" label="Home" route="/home" />
+        <BottomNavItem icon="local-activity" label="Tickets" active route="/my-ticket" />
+        <BottomNavItem icon="favorite" label="Favorites" route="/favourite" />
+        <BottomNavItem icon="person" label="Profile" route="/profile" />
       </View>
     </SafeAreaView>
   );
@@ -352,7 +364,9 @@ function TicketCard({ ticket }: { ticket: TicketView }) {
         <View style={styles.ticketFooter}>
           <View style={styles.codeBox}>
             <MaterialIcons name="qr-code-2" size={82} color="#111827" />
-            <Text style={styles.codeText}>{ticket.ticketCode}</Text>
+            <Text style={styles.codeText} numberOfLines={1}>
+              {ticket.ticketCode}
+            </Text>
           </View>
 
           <View style={styles.seatDetails}>
@@ -399,7 +413,9 @@ function TicketMeta({
   return (
     <View style={[styles.metaItem, withBorder && styles.metaItemBorder]}>
       <Text style={styles.metaLabel}>{label}</Text>
-      <Text style={styles.metaValue}>{value}</Text>
+      <Text style={styles.metaValue} numberOfLines={1}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -408,15 +424,20 @@ function BottomNavItem({
   icon,
   label,
   active,
+  route,
 }: {
   icon: keyof typeof MaterialIcons.glyphMap;
   label: string;
   active?: boolean;
+  route: Href;
 }) {
   const color = active ? '#e50914' : '#c8c6c5';
 
   return (
-    <TouchableOpacity style={[styles.navItem, !active && styles.navItemMuted]} activeOpacity={0.75}>
+    <TouchableOpacity
+      style={[styles.navItem, !active && styles.navItemMuted]}
+      activeOpacity={0.75}
+      onPress={() => router.replace(route)}>
       <MaterialIcons name={icon} size={24} color={color} />
       <Text style={[styles.navLabel, active && styles.navLabelActive]}>{label}</Text>
       {active && <View style={styles.navDot} />}
@@ -541,7 +562,7 @@ const styles = StyleSheet.create({
     opacity: 1,
   },
   pastStack: {
-    opacity: 0.5,
+    opacity: 0.82,
   },
   ticketPressable: {
     marginBottom: 24,
@@ -638,12 +659,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     alignItems: 'center',
     minWidth: 148,
+    maxWidth: '100%',
   },
   codeText: {
     color: '#111827',
     fontSize: 12,
     fontWeight: '800',
     marginTop: 4,
+    maxWidth: '100%',
   },
   seatDetails: {
     flexDirection: 'row',
@@ -667,8 +690,9 @@ const styles = StyleSheet.create({
   },
   metaValue: {
     color: '#dce3f0',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
+    maxWidth: '95%',
   },
   peekTicket: {
     marginTop: -48,

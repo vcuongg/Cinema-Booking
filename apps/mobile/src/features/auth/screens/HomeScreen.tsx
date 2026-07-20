@@ -543,7 +543,10 @@ export default function HomeScreen() {
           </Text>
         </Pressable>
 
-        <Pressable style={styles.navItem}>
+        <Pressable
+          style={styles.navItem}
+          onPress={() => router.replace("/my-ticket")}
+        >
           <Ionicons
             name="ticket-outline"
             size={22}
