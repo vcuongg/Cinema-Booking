@@ -12,3 +12,12 @@ export async function getUsers(): Promise<AdminUser[]> {
   if (!users) throw new Error("API users trả về dữ liệu không hợp lệ.");
   return users;
 }
+
+export async function updateUser(id: string, data: Partial<AdminUser> & { password?: string }): Promise<AdminUser> {
+  const response = await apiRequest<{ user: AdminUser }>(`/users/${id}`, { method: "PUT", auth: true, body: JSON.stringify(data) });
+  return response.user;
+}
+
+export async function deleteUser(id: string): Promise<void> {
+  await apiRequest(`/users/${id}`, { method: "DELETE", auth: true });
+}
