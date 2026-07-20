@@ -8,6 +8,7 @@
     "scheme": "cinema-booking",
     "userInterfaceStyle": "dark",
     "android": {
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#080D14",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

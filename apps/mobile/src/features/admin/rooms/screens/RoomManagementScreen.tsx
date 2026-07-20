@@ -1,9 +1,11 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -13,6 +15,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -45,6 +48,7 @@ function getCinemaName(room: Room): string {
 }
 
 export default function RoomManagementScreen() {
+  const { height: screenHeight } = useWindowDimensions();
   const router = useRouter();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [cinemas, setCinemas] = useState<Cinema[]>([]);
@@ -60,6 +64,35 @@ export default function RoomManagementScreen() {
   const [roomName, setRoomName] = useState("");
   const [rows, setRows] = useState("");
   const [seatsPerRow, setSeatsPerRow] = useState("");
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const editorScrollRef = useRef<ScrollView>(null);
+
+  const scrollEditorTo = (y?: number) => {
+    // Wait until the keyboard has updated the modal's layout before scrolling.
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (typeof y === "number") {
+          editorScrollRef.current?.scrollTo({ y, animated: true });
+        } else {
+          editorScrollRef.current?.scrollToEnd({ animated: true });
+        }
+      }, 150);
+    });
+  };
+
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+
+    const showSubscription = Keyboard.addListener("keyboardDidShow", (event) => {
+      setKeyboardHeight(event.endCoordinates.height);
+    });
+    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => setKeyboardHeight(0));
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   const totalSeats = useMemo(() => {
     const parsedRows = Number(rows);
@@ -114,17 +147,11 @@ export default function RoomManagementScreen() {
   };
 
   const openCreateEditor = () => {
-    resetEditor();
-    setEditorVisible(true);
+    router.push("/admin/CreateRoom");
   };
 
   const openUpdateEditor = (room: Room) => {
-    setEditingRoom(room);
-    setCinemaId(getCinemaId(room));
-    setRoomName(room.roomName);
-    setRows(String(room.rows));
-    setSeatsPerRow(String(room.seatsPerRow));
-    setEditorVisible(true);
+    router.push({ pathname: "/admin/UpdateRoom", params: { id: room._id } });
   };
 
   const onCloseEditor = () => {
@@ -278,10 +305,21 @@ export default function RoomManagementScreen() {
         )}
 
         <Modal visible={editorVisible} animationType="slide" transparent onRequestClose={onCloseEditor}>
-          <Pressable style={styles.modalBackdrop} onPress={onCloseEditor}>
-            <Pressable style={styles.modalSheet} onPress={(event) => event.stopPropagation()}>
+          <KeyboardAvoidingView style={[styles.modalBackdrop, Platform.OS === "android" && { paddingBottom: keyboardHeight }]} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+            <Pressable style={styles.backdropTapArea} onPress={onCloseEditor} />
+            <View style={[styles.modalSheet, keyboardHeight > 0 && { maxHeight: screenHeight - keyboardHeight - 16 }]}>
               <Text style={styles.modalTitle}>{editingRoom ? "Update Room" : "Create Room"}</Text>
-
+              <ScrollView
+                ref={editorScrollRef}
+                style={styles.formScroll}
+                contentContainerStyle={[
+                  styles.formScrollContent,
+                  Platform.OS === "android" && { paddingBottom: keyboardHeight + 16 },
+                ]}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                showsVerticalScrollIndicator={false}
+              >
               <Text style={styles.label}>Cinema</Text>
               <TouchableOpacity style={styles.pickerButton} onPress={() => setCinemaPickerVisible(true)}>
                 <Text style={styles.pickerText}>{selectedCinema ? selectedCinema.cinemaName : "Select cinema"}</Text>
@@ -295,6 +333,7 @@ export default function RoomManagementScreen() {
                 placeholder="e.g. Hall 1"
                 placeholderTextColor={COLORS.muted}
                 style={styles.input}
+                onFocus={() => scrollEditorTo(70)}
               />
 
               <View style={styles.twoColRow}>
@@ -307,6 +346,7 @@ export default function RoomManagementScreen() {
                     placeholder="10"
                     placeholderTextColor={COLORS.muted}
                     style={styles.input}
+                    onFocus={() => scrollEditorTo()}
                   />
                 </View>
 
@@ -319,6 +359,7 @@ export default function RoomManagementScreen() {
                     placeholder="12"
                     placeholderTextColor={COLORS.muted}
                     style={styles.input}
+                    onFocus={() => scrollEditorTo()}
                   />
                 </View>
               </View>
@@ -334,8 +375,9 @@ export default function RoomManagementScreen() {
                   <Text style={styles.saveText}>{saving ? "Saving..." : "Save"}</Text>
                 </TouchableOpacity>
               </View>
-            </Pressable>
-          </Pressable>
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         <Modal
@@ -494,6 +536,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.55)",
     justifyContent: "flex-end",
   },
+  backdropTapArea: {
+    ...StyleSheet.absoluteFill,
+  },
   modalSheet: {
     backgroundColor: COLORS.card,
     borderTopLeftRadius: 18,
@@ -502,12 +547,19 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     borderWidth: 1,
     maxHeight: "82%",
+    flexShrink: 1,
   },
   modalTitle: {
     color: COLORS.text,
     fontSize: 17,
     fontWeight: "700",
     marginBottom: 12,
+  },
+  formScroll: {
+    flexShrink: 1,
+  },
+  formScrollContent: {
+    flexGrow: 1,
   },
   label: {
     color: COLORS.muted,
