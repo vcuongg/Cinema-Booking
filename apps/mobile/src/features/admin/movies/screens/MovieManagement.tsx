@@ -158,6 +158,9 @@ export default function MovieManagementScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <MaterialIcons name="arrow-back" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
           <View>
             <Text style={styles.admin}>Admin Panel</Text>
             <Text style={styles.city}>
@@ -333,6 +336,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingTop: 14,
+  },
+  backButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#1E2939",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
   },
 
   admin: {

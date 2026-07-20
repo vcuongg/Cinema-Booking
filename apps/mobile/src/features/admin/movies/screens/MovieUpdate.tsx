@@ -277,7 +277,7 @@ export default function MovieUpdateScreen({ movieId }: Props) {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
         {/* Poster */}
-        <PosterPicker />
+        {/* <PosterPicker /> */}
 
         {/* Movie Title */}
         <FormField

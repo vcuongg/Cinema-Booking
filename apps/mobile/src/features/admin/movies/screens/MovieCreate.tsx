@@ -175,7 +175,7 @@ export default function MovieCreateScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
         {/* Poster */}
-        <PosterPicker />
+        {/* <PosterPicker /> */}
 
         {/* Movie Title */}
         <FormField
