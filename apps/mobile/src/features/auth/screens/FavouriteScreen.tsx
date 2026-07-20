@@ -137,7 +137,7 @@ export default function FavouriteScreen() {
           <Text style={styles.navText}>Home</Text>
         </Pressable>
 
-        <Pressable style={styles.navItem}>
+        <Pressable style={styles.navItem} onPress={() => router.replace("/my-ticket")}>
           <Ionicons name="ticket-outline" size={22} color="#6B7280" />
           <Text style={styles.navText}>Bookings</Text>
         </Pressable>
