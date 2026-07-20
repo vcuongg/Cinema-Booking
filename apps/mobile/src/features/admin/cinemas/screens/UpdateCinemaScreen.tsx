@@ -363,14 +363,6 @@ export default function CreateCinemaScreen() {
           ))
         )}
 
-        <TextInput
-          style={styles.nextHallInput}
-          placeholder="Defining next hall..."
-          placeholderTextColor="#5C5C60"
-          value={nextHallName}
-          onChangeText={setNextHallName}
-          returnKeyType="done"
-        />
 
         {/* Cinema Status */}
         <View style={styles.statusCard}>
