@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 132,
+    paddingBottom: 176,
   },
   titleBlock: {
     marginBottom: 24,
@@ -565,7 +565,7 @@ const styles = StyleSheet.create({
     opacity: 0.82,
   },
   ticketPressable: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   ticketPressed: {
     transform: [{ scale: 0.98 }],
@@ -695,15 +695,15 @@ const styles = StyleSheet.create({
     maxWidth: '95%',
   },
   peekTicket: {
-    marginTop: -48,
-    marginHorizontal: 10,
-    padding: 24,
+    marginTop: 0,
+    marginBottom: 28,
+    marginHorizontal: 0,
+    padding: 20,
     borderRadius: 16,
     backgroundColor: '#232a34',
     borderWidth: 1,
     borderColor: 'rgba(94, 63, 59, 0.2)',
-    opacity: 0.8,
-    transform: [{ scale: 0.95 }],
+    opacity: 0.92,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
