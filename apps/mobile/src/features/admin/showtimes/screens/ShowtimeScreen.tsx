@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   StatusBar,
   Alert,
+  TextInput,
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -15,6 +16,7 @@ import { Ionicons, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import {
   getManageShowtimes,
   deleteShowtime,
+  searchShowtimes,
 } from "@/shared/services/ShowtimeService";
 import { ManageShowtime } from "@/shared/types/showtime";
 import { useRouter, useNavigation } from "expo-router";
@@ -33,6 +35,8 @@ export default function ManageShowtimeScreen() {
   const navigation = useNavigation();
   const [movies, setMovies] = useState<ManageShowtime[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchText, setSearchText] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
 
   const loadShowtimes = async () => {
     try {
@@ -52,10 +56,28 @@ export default function ManageShowtimeScreen() {
     const unsubscribe = navigation.addListener("focus", () => {
       loadShowtimes();
     });
-
     // Cleanup listener khi component unmount
     return unsubscribe;
   }, [navigation]);
+
+  useEffect(() => {
+    const timeout = setTimeout(async () => {
+      try {
+        if (searchText.trim() === "") {
+          const data = await getManageShowtimes();
+          setMovies(data);
+        } else {
+          const data = await searchShowtimes(searchText.trim());
+          setMovies(data);
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeout);
+  }, [searchText]);
+
   const handleGoBack = () => {
     router.replace("/admin/DashBoardAdmin");
   };
@@ -99,8 +121,15 @@ export default function ManageShowtimeScreen() {
             text: "Delete",
             style: "destructive",
             onPress: async () => {
-              await deleteShowtime(showtimeId);
-              await loadShowtimes();
+              try {
+                await deleteShowtime(showtimeId);
+
+                await loadShowtimes();
+
+                Alert.alert("Success", "Showtime deleted successfully.");
+              } catch (error: any) {
+                Alert.alert("Delete Failed", error.message);
+              }
             },
           },
         ],
@@ -118,23 +147,42 @@ export default function ManageShowtimeScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.headerIconBtn} onPress={handleGoBack}>
-            <Ionicons name="arrow-back" size={24} color={COLORS.white} />
+          <TouchableOpacity onPress={handleGoBack} style={styles.headerIconBtn}>
+            <Ionicons name="chevron-back" size={22} color="#E74C3C" />
           </TouchableOpacity>
 
           <Text style={styles.headerTitle}>Manage Showtimes</Text>
 
-          <View style={styles.headerRightIcons}>
-            <TouchableOpacity style={styles.headerIconBtn}>
-              <Ionicons name="search" size={22} color={COLORS.white} />
-            </TouchableOpacity>
-
-            <View style={styles.avatar}>
-              <Ionicons name="person" size={16} color={COLORS.gray} />
-            </View>
-          </View>
+          <TouchableOpacity
+            style={styles.headerIconBtn}
+            onPress={() => setShowSearch(!showSearch)}
+          >
+            <Ionicons
+              name={showSearch ? "close" : "search"}
+              size={22}
+              color={COLORS.white}
+            />
+          </TouchableOpacity>
         </View>
 
+        {showSearch && (
+          <View style={styles.searchContainer}>
+            <Ionicons
+              name="search"
+              size={18}
+              color="#999"
+              style={{ marginLeft: 10 }}
+            />
+
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search movie..."
+              placeholderTextColor="#777"
+              value={searchText}
+              onChangeText={setSearchText}
+            />
+          </View>
+        )}
         {loading && (
           <Text
             style={{
@@ -149,7 +197,6 @@ export default function ManageShowtimeScreen() {
 
         {!loading &&
           movies.map((movieItem) => {
-            // ===== Group showtime theo cinema =====
 
             const cinemaGroups: { [key: string]: any } = {};
 
@@ -272,7 +319,7 @@ export default function ManageShowtimeScreen() {
                               },
                             ]}
                           >
-                            ${show.price}
+                            {show.price} VND
                           </Text>
                         </View>
 
@@ -509,5 +556,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginLeft: 8,
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1F1F1F",
+    borderRadius: 12,
+    marginTop: 12,
+    marginBottom: 18,
+    height: 46,
+  },
+
+  searchInput: {
+    flex: 1,
+    color: "#fff",
+    fontSize: 14,
+    paddingHorizontal: 10,
   },
 });

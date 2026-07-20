@@ -1,4 +1,4 @@
-import { apiRequest } from "./api";
+import { apiRequest, resolveAssetUrl } from "./api";
 
 import type { Movie } from "../types/movie";
 
@@ -26,8 +26,10 @@ const normalizeMovie = (movie: Movie | Partial<Movie>): Movie => {
 
   return {
     ...(movie as Movie),
-    poster,
-    trailer,
+    poster: resolveAssetUrl(poster),
+    posterUrl: resolveAssetUrl(poster),
+    trailer: resolveAssetUrl(trailer),
+    trailerUrl: resolveAssetUrl(trailer),
   };
 };
 

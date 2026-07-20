@@ -279,9 +279,7 @@ export default function HomeScreen() {
 
           <Pressable
             style={styles.profileButton}
-            onPress={() => {
-              // Chưa thêm màn hình profile nên chưa điều hướng.
-            }}
+            onPress={() => router.replace("/profile")}
           >
             <Ionicons
               name="person-outline"

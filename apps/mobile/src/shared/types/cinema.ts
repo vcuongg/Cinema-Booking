@@ -1,21 +1,53 @@
 export interface Cinema {
-    _id: string;
+  _id: string;
 
-    cinemaName: string;
+  cinemaName: string;
 
-    address: string;
+  address: string;
 
-    city: string;
+  city: string;
 
-    coverPhoto: string;
+  coverPhoto: string;
 
-    totalHalls: number;
+  totalHalls: number;
 
-    totalCapacity: number;
+  totalCapacity: number;
 
-    isActive: boolean;
+  isActive: boolean;
 
-    createdAt: string;
+  createdAt: string;
 
-    updatedAt: string;
+  updatedAt: string;
+}
+
+export interface CreateCinemaRequest {
+  cinemaName: string;
+
+  address: string;
+
+  city: string;
+
+  coverPhoto?: string;
+
+  totalHalls: number;
+
+  totalCapacity: number;
+
+  isActive?: boolean;
+}
+
+export interface UpdateCinemaRequest {
+  cinemaName?: string;
+
+  address?: string;
+
+  city?: string;
+
+  coverPhoto?: string;
+
+  totalHalls?: number;
+
+  totalCapacity?: number;
+
+  isActive?: boolean;
 }

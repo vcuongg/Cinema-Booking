@@ -1,4 +1,3 @@
-
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -34,10 +33,32 @@ export default function ShowtimesScreen() {
       const data = await showtimeService.getShowtimesByMovie(movieId);
       setShowtimes(data);
 
-      // Chọn ngày đầu tiên làm mặc định nếu có dữ liệu
-      if (data.length > 0) {
-        const firstDate = new Date(data[0].showDate).toDateString();
-        setSelectedDateStr(firstDate);
+      // LOGIC MỚI: Chỉ chọn ngày mặc định là ngày hợp lệ (Từ hôm nay trở đi)
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+      const validShowtimes = data.filter((st) => {
+        const d = new Date(st.showDate);
+        const stDateStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+        
+        // Nếu là ngày quá khứ -> loại
+        if (stDateStart < todayStart) return false;
+        
+        // Nếu là hôm nay, kiểm tra xem giờ chiếu đã qua chưa
+        if (stDateStart === todayStart) {
+          const [hours, minutes] = st.startTime.split(':').map(Number);
+          const showtimeMinutes = hours * 60 + minutes;
+          if (showtimeMinutes <= currentMinutes) return false;
+        }
+
+        return true;
+      });
+
+      if (validShowtimes.length > 0) {
+        // Lấy ngày của suất chiếu hợp lệ đầu tiên làm mặc định
+        const firstValidDate = new Date(validShowtimes[0].showDate).toDateString();
+        setSelectedDateStr(firstValidDate);
       }
     } catch (err) {
       setError("Không thể tải lịch chiếu phim");
@@ -57,23 +78,45 @@ export default function ShowtimesScreen() {
     return { day, monthStr };
   };
 
-  // 2. Lấy danh sách ngày chiếu duy nhất (Unique Dates) từ DB
+  // 2. Lấy danh sách ngày chiếu (Loại bỏ các ngày trong quá khứ)
   const uniqueDates = useMemo(() => {
     const datesMap: { [key: string]: Date } = {};
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
     showtimes.forEach((st) => {
       const d = new Date(st.showDate);
-      datesMap[d.toDateString()] = d;
+      const stDateStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+      // Chỉ hiển thị trên giao diện những ngày >= hôm nay
+      if (stDateStart >= todayStart) {
+        datesMap[d.toDateString()] = d;
+      }
     });
     return Object.values(datesMap).sort((a, b) => a.getTime() - b.getTime());
   }, [showtimes]);
 
-  // 3. Lọc suất chiếu của ngày đang chọn và Group theo Rạp (Cinema)
+  // 3. Lọc suất chiếu của ngày đang chọn, loại bỏ suất chiếu đã qua giờ nếu là hôm nay
   const cinemasWithShowtimes = useMemo(() => {
     if (!selectedDateStr) return [];
 
-    const filtered = showtimes.filter(
-      (st) => new Date(st.showDate).toDateString() === selectedDateStr
-    );
+    const now = new Date();
+    const isToday = selectedDateStr === now.toDateString();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const filtered = showtimes.filter((st) => {
+      const isMatchDate = new Date(st.showDate).toDateString() === selectedDateStr;
+      if (!isMatchDate) return false;
+
+      // Nếu chọn ngày hôm nay, chặn luôn các giờ chiếu đã trôi qua
+      if (isToday) {
+        const [hours, minutes] = st.startTime.split(':').map(Number);
+        const showtimeMinutes = hours * 60 + minutes;
+        if (showtimeMinutes <= currentMinutes) return false;
+      }
+
+      return true;
+    });
 
     const groupMap: {
       [cinemaId: string]: { cinema: CinemaSummary; showtimes: ShowtimeSummary[] };
@@ -93,7 +136,8 @@ export default function ShowtimesScreen() {
       groupMap[cinema._id].showtimes.push(st);
     });
 
-    return Object.values(groupMap);
+    // Chỉ trả về các rạp thực sự có suất chiếu hợp lệ
+    return Object.values(groupMap).filter((group) => group.showtimes.length > 0);
   }, [showtimes, selectedDateStr]);
 
   if (loading) {
@@ -113,10 +157,8 @@ export default function ShowtimesScreen() {
           style={styles.backButton}
           onPress={() => {
             if (router.canGoBack()) {
-              // Nếu có lịch sử màn hình trước đó -> Lùi về bình thường
               router.back();
             } else {
-              // Nếu không có lịch sử (do reload app hoặc mở từ link) -> Đẩy về trang chủ
               router.replace("/home");
             }
           }}
@@ -134,29 +176,35 @@ export default function ShowtimesScreen() {
         <Text style={styles.sectionTitle}>SELECT DATE</Text>
         
         <View style={styles.dateListContainer}>
-          {uniqueDates.map((item) => {
-            const dateStr = item.toDateString();
-            const isActive = selectedDateStr === dateStr;
-            const { day, monthStr } = formatDateCard(item);
+          {uniqueDates.length > 0 ? (
+            uniqueDates.map((item) => {
+              const dateStr = item.toDateString();
+              const isActive = selectedDateStr === dateStr;
+              const { day, monthStr } = formatDateCard(item);
 
-            return (
-              <Pressable
-                key={dateStr} // Nhớ thêm key khi dùng map
-                style={[styles.dateCard, isActive && styles.dateCardActive]}
-                onPress={() => {
-                  setSelectedDateStr(dateStr);
-                  setSelectedShowtime(null); // Reset suất chiếu khi đổi ngày
-                }}
-              >
-                <Text style={[styles.dateMonth, isActive && styles.textActive]}>
-                  {monthStr}
-                </Text>
-                <Text style={[styles.dateDay, isActive && styles.textActive]}>
-                  {day}
-                </Text>
-              </Pressable>
-            );
-          })}
+              return (
+                <Pressable
+                  key={dateStr}
+                  style={[styles.dateCard, isActive && styles.dateCardActive]}
+                  onPress={() => {
+                    setSelectedDateStr(dateStr);
+                    setSelectedShowtime(null); 
+                  }}
+                >
+                  <Text style={[styles.dateMonth, isActive && styles.textActive]}>
+                    {monthStr}
+                  </Text>
+                  <Text style={[styles.dateDay, isActive && styles.textActive]}>
+                    {day}
+                  </Text>
+                </Pressable>
+              );
+            })
+          ) : (
+            <Text style={{ color: "#6B7280", paddingHorizontal: 18 }}>
+              Không có lịch chiếu khả dụng trong tương lai.
+            </Text>
+          )}
         </View>
       </View>
 
@@ -165,7 +213,18 @@ export default function ShowtimesScreen() {
         data={cinemasWithShowtimes}
         keyExtractor={(item) => item.cinema._id}
         contentContainerStyle={styles.cinemaList}
-        ListHeaderComponent={<Text style={styles.sectionTitle}>AVAILABLE CINEMAS</Text>}
+        ListHeaderComponent={
+          cinemasWithShowtimes.length > 0 ? (
+            <Text style={styles.sectionTitle}>AVAILABLE CINEMAS</Text>
+          ) : null
+        }
+        ListEmptyComponent={
+          !loading && uniqueDates.length > 0 ? (
+            <Text style={styles.emptyText}>
+              Các suất chiếu trong ngày này đã kết thúc.
+            </Text>
+          ) : null
+        }
         renderItem={({ item }) => (
           <View style={styles.cinemaCard}>
             <View style={styles.cinemaHeader}>
@@ -244,4 +303,5 @@ const styles = StyleSheet.create({
   continueButton: { height: 52, borderRadius: 12, backgroundColor: "#E50914", justifyContent: "center", alignItems: "center" },
   disabledButton: { backgroundColor: "#151D27", opacity: 0.5 },
   continueText: { color: "#FFFFFF", fontSize: 15, fontWeight: "800" },
+  emptyText: { color: "#6B7280", fontSize: 13, paddingHorizontal: 18, marginTop: 10 },
 });

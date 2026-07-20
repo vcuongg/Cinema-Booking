@@ -1,5 +1,7 @@
 import { FontAwesome } from "@expo/vector-icons";
 import { useEffect, useMemo, useState } from "react";
+import { router } from "expo-router";
+
 import {
   ActivityIndicator,
   RefreshControl,
@@ -8,6 +10,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Pressable
 } from "react-native";
 
 import { getAdminDashboardSummary } from "@/shared/services/DashboardService";
@@ -85,7 +88,8 @@ export default function AdminDashBoardScreen() {
           </Text>
         </View>
 
-        <TouchableOpacity style={styles.searchBtn}>
+        <TouchableOpacity style={styles.searchBtn} 
+        onPress={() => router.replace("/profile")}>
           <FontAwesome name="user-circle" size={24} color="#E50914" />
         </TouchableOpacity>
       </View>

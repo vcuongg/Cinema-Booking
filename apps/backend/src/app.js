@@ -6,9 +6,10 @@ const movieRoutes = require("./routes/movies");
 const favouriteRoutes = require("./routes/favourite");
 const showtimeRoutes = require("./routes/showtime");
 const roomRoutes = require("./routes/room");
-
+const cinemaRoutes = require("./routes/cinema");
 const bookingRoutes = require("./routes/booking");
 const paymentRoutes = require("./routes/payment");
+const userRoutes = require("./routes/users");
 
 const sendEmail = require("./utils/sendEmail");
 const { isDbConnected } = require("./config/db");
@@ -24,16 +25,28 @@ app.use(
   }),
 );
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(
+  express.json({
+    limit: "20mb",
+  }),
+);
+
+app.use(
+  express.urlencoded({
+    extended: true,
+    limit: "20mb",
+  }),
+);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/movies", movieRoutes);
 app.use("/api/favourites", favouriteRoutes);
 app.use("/api/showtimes", showtimeRoutes);
 app.use("/api/rooms", roomRoutes);
+app.use("/api/cinemas", cinemaRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/users", userRoutes);
 
 app.get("/", (req, res) => {
   return res.status(200).json({

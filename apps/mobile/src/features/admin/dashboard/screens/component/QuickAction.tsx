@@ -16,6 +16,11 @@ type Action = {
 
 const actions: Action[] = [
   {
+    title: "Go to Home",
+    icon: "home",
+    link: "/home" as Href,
+  },
+  {
     title: "Manage Movies",
     icon: "film",
     link: "/admin/MoviesManagement" as Href,
@@ -28,7 +33,7 @@ const actions: Action[] = [
   {
     title: "Manage Cinemas",
     icon: "business",
-    link: "/admin/cinemas" as Href,
+    link: "/admin/CinemaManagement" as Href,
   },
   {
     title: "Manage Showtimes",
@@ -38,7 +43,7 @@ const actions: Action[] = [
   {
     title: "Manage Users",
     icon: "people",
-    link: "/admin/users" as Href,
+    link: "/admin/UserManagement" as Href,
   },
 ];
 

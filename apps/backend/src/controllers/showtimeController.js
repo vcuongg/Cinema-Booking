@@ -20,6 +20,14 @@ const calculateEndTime = (startTime, duration) => {
   )}`;
 };
 
+const removeVietnameseTones = (str) => {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase();
+};
 // ================= GET ALL =================
 
 const getShowtimes = async (req, res) => {
@@ -206,9 +214,20 @@ const createShowtime = async (req, res) => {
 
     // ===== Check duplicated showtime =====
 
+    const selectedDate = new Date(showDate);
+
+    const startOfDay = new Date(selectedDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(selectedDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
     const existedShowtimes = await Showtime.find({
       roomId,
-      showDate,
+      showDate: {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      },
     });
 
     const newStart =
@@ -217,6 +236,7 @@ const createShowtime = async (req, res) => {
     const newEnd =
       Number(endTime.split(":")[0]) * 60 + Number(endTime.split(":")[1]);
 
+    console.log("Showtimes found:", existedShowtimes);
     const isConflict = existedShowtimes.some((show) => {
       const existStart =
         Number(show.startTime.split(":")[0]) * 60 +
@@ -274,6 +294,32 @@ const updateShowtime = async (req, res) => {
       });
     }
 
+    // ================= Business Rules =================
+
+    const showStart = new Date(currentShowtime.showDate);
+
+    const [hour, minute] = currentShowtime.startTime.split(":").map(Number);
+
+    showStart.setHours(hour, minute, 0, 0);
+
+    if (new Date() >= showStart) {
+      return res.status(400).json({
+        error: "Cannot update a showtime that has already started.",
+      });
+    }
+
+    const bookingCount = await Booking.countDocuments({
+      showtimeId: id,
+    });
+
+    if (bookingCount > 0) {
+      return res.status(400).json({
+        error: "Cannot update a showtime that already has bookings.",
+      });
+    }
+
+    // ================= Get update data =================
+
     const movieId = req.body.movieId ?? currentShowtime.movieId;
 
     const roomId = req.body.roomId ?? currentShowtime.roomId;
@@ -284,7 +330,7 @@ const updateShowtime = async (req, res) => {
 
     const price = req.body.price ?? currentShowtime.price;
 
-    // ===== Check movie =====
+    // ================= Check movie =================
 
     const movie = await Movie.findById(movieId);
 
@@ -294,7 +340,7 @@ const updateShowtime = async (req, res) => {
       });
     }
 
-    // ===== Check room =====
+    // ================= Check room =================
 
     const room = await Room.findById(roomId);
 
@@ -304,7 +350,7 @@ const updateShowtime = async (req, res) => {
       });
     }
 
-    // ===== Release date =====
+    // ================= Release date =================
 
     if (new Date(showDate) < new Date(movie.releaseDate)) {
       return res.status(400).json({
@@ -312,13 +358,26 @@ const updateShowtime = async (req, res) => {
       });
     }
 
+    // ================= Calculate end time =================
+
     const endTime = calculateEndTime(startTime, movie.duration);
 
-    // ===== Conflict =====
+    // ================= Conflict check =================
+
+    const selectedDate = new Date(showDate);
+
+    const startOfDay = new Date(selectedDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(selectedDate);
+    endOfDay.setHours(23, 59, 59, 999);
 
     const existedShowtimes = await Showtime.find({
       roomId,
-      showDate,
+      showDate: {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      },
       _id: {
         $ne: id,
       },
@@ -348,7 +407,7 @@ const updateShowtime = async (req, res) => {
       });
     }
 
-    // ===== Update =====
+    // ================= Update =================
 
     currentShowtime.movieId = movieId;
     currentShowtime.roomId = roomId;
@@ -360,7 +419,7 @@ const updateShowtime = async (req, res) => {
     await currentShowtime.save();
 
     res.status(200).json({
-      message: "Showtime updated",
+      message: "Showtime updated successfully",
       showtime: currentShowtime,
     });
   } catch (error) {
@@ -369,7 +428,6 @@ const updateShowtime = async (req, res) => {
     });
   }
 };
-
 // ================= DELETE =================
 
 const deleteShowtime = async (req, res) => {
@@ -382,7 +440,7 @@ const deleteShowtime = async (req, res) => {
   }
 
   try {
-    const showtime = await Showtime.findByIdAndDelete(id);
+    const showtime = await Showtime.findById(id).populate("movieId");
 
     if (!showtime) {
       return res.status(404).json({
@@ -390,9 +448,40 @@ const deleteShowtime = async (req, res) => {
       });
     }
 
+    const now = new Date();
+
+    const showStart = new Date(showtime.showDate);
+
+    const [hour, minute] = showtime.startTime.split(":").map(Number);
+
+    showStart.setHours(hour, minute, 0, 0);
+
+    if (now >= showStart) {
+      return res.status(400).json({
+        error: "Cannot delete a showtime that has already started.",
+      });
+    }
+
+    if (now >= showEnd) {
+      return res.status(400).json({
+        error: "Completed showtimes are read-only and cannot be deleted.",
+      });
+    }
+
+    const bookingCount = await Booking.countDocuments({
+      showtimeId: id,
+    });
+
+    if (bookingCount > 0) {
+      return res.status(400).json({
+        error: "Cannot delete a showtime that already has bookings.",
+      });
+    }
+
+    await Showtime.findByIdAndDelete(id);
+
     res.status(200).json({
-      message: "Showtime deleted",
-      showtime,
+      message: "Showtime deleted successfully.",
     });
   } catch (error) {
     res.status(400).json({
@@ -496,6 +585,73 @@ const getSeatsByShowtime = async (req, res) => {
   }
 };
 
+// ================= SEARCH SHOWTIME =================
+
+const searchShowtimes = async (req, res) => {
+  const { keyword } = req.query;
+
+  try {
+    // let movieQuery = {
+    //   status: "now_showing",
+    // };
+
+    // if (keyword && keyword.trim() !== "") {
+    //   movieQuery.title = {
+    //     $regex: keyword.trim(),
+    //     $options: "i",
+    //   };
+    // }
+
+    // const movies = await Movie.find(movieQuery).sort({
+    //   title: 1,
+    // });
+
+    let movies = await Movie.find({
+      status: "now_showing",
+    }).sort({
+      title: 1,
+    });
+
+    if (keyword && keyword.trim() !== "") {
+      const keywordNormalized = removeVietnameseTones(keyword);
+
+      movies = movies.filter((movie) =>
+        removeVietnameseTones(movie.title).includes(keywordNormalized),
+      );
+    }
+
+    const movieIds = movies.map((movie) => movie._id);
+
+    const showtimes = await Showtime.find({
+      movieId: {
+        $in: movieIds,
+      },
+    })
+      .populate({
+        path: "roomId",
+        populate: {
+          path: "cinemaId",
+        },
+      })
+      .sort({
+        showDate: 1,
+        startTime: 1,
+      });
+
+    const result = movies.map((movie) => ({
+      movie,
+      showtimes: showtimes.filter(
+        (showtime) => showtime.movieId.toString() === movie._id.toString(),
+      ),
+    }));
+
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(400).json({
+      error: error.message,
+    });
+  }
+};
 module.exports = {
   getShowtimes,
   getManageShowtimes,
@@ -506,4 +662,5 @@ module.exports = {
   deleteShowtime,
   getShowtimesByMovie,
   getSeatsByShowtime,
+  searchShowtimes,
 };
